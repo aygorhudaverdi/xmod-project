@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit + property tests (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the project's floor; vitest 5 officially supports 22.12+, so both are exercised.
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
+  e2e:
+    name: API + UI tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - name: Upload Playwright HTML report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+      - name: Upload raw test results (JSON, traces, screenshots)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+      - name: Stage report for GitHub Pages
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: playwright-report/
+
+  audit:
+    name: Dependency audit (non-blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: npm audit --audit-level=high
+        # Visible but not build-breaking: a finding becomes a warning annotation plus a job-summary entry.
+        run: |
+          if npm audit --audit-level=high > audit.txt 2>&1; then
+            echo "### npm audit: no high/critical findings" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=npm audit::high or critical vulnerabilities found, see job summary"
+            { echo "### npm audit findings"; echo '```'; cat audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat audit.txt
+
+  deploy-report:
+    name: Publish Playwright report to GitHub Pages
+    needs: e2e
+    # Publish failing reports too; they are the ones people need to read.
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
