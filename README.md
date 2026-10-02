@@ -148,7 +148,15 @@ Free instances sleep when idle, so the first request after a pause is slow. Don'
 2. Expected losses are rounded to whole dollars before the Table II band lookup.
 3. A multi-person accident counts as one entry; the 25-point cap counts claims with primary > 0 individually.
 4. Plan values are the 2025 ones (eligibility $10,800). The Sept 2026 Plan ($11,700, 3-decimal ELRs) is not loaded.
+5. Experience period and rating-date interpretations A1–A6 are listed in [docs/ENGINE_PERIOD_RULES.md](docs/ENGINE_PERIOD_RULES.md).
+
+## Experience period and rating effective date
+
+`POST /api/xmod/experience-period` picks the policies and audited payroll that belong in a rating (Plan Sec III R2–R3),
+explains each decision, and returns a `ratingInput` you can POST straight to `/api/xmod/calculate`.
+`POST /api/xmod/rating-effective-date` applies Sec V R1. Plan citations, assumptions A1–A6 and examples are in
+[docs/ENGINE_PERIOD_RULES.md](docs/ENGINE_PERIOD_RULES.md).
 
 ## Not implemented yet
-Experience period / effective-date rules, combinability and ownership change, corrections and
-closed-claim revision, appeals workflow. Planned: performance tests (k6), Prometheus + Grafana tab.
+Combinability and ownership change, corrections and closed-claim revision, appeals workflow, the remaining
+Sec III R3 exclusions (b–f) and R7 coverage-lapse rule, and Sec V R2–R4 mod application.

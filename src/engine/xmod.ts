@@ -63,6 +63,14 @@ export interface RatingInput {
   excludedUnauditedPayroll?: boolean;
 }
 
+/**
+ * Interpretation choices the Plan text does not settle. The two parameters below are switchable; two more
+ * assumptions are fixed behavior, documented here so all four live in one place (README, TEST_STRATEGY §6):
+ *   - 25-point cap (VI.6): counts claims with Actual Primary > 0 individually; a multi-person accident is
+ *     grouped into one capped entry first, so it counts once.
+ *   - Plan values: Sept 1, 2025 Plan only (eligibility $10,800, 2-decimal ELRs). The Sept 2026 Plan
+ *     ($11,700, 3-decimal ELRs) is not loaded.
+ */
 export interface RatingPolicy {
   /** Decimal places of the published mod factor (0.87 → 2). */
   modDecimals: number;

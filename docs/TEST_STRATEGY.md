@@ -11,13 +11,14 @@ were a real product, because the techniques transfer.
   claim valuation and its exception rules (Sec VI R2), the single-claim 25-point cap, eligibility, rounding.
 - The HTTP API (`src/server/app.ts`): routes, validation, the error contract, rate limiting, security headers, metrics.
 - The browser UI (`web/`): calculator, user-stories tab, quality dashboard.
+- Experience-period selection and rating-effective-date rules (`src/engine/period.ts`, Sec III R2–R3, Sec V R1).
 - Non-functional: performance (k6), security (headers, CSP, rate limit, XSS, payload limits, dependency audit),
   accessibility (axe, keyboard).
 - The delivery pipeline: CI jobs, artifacts, the report on Pages, container image.
 
 **Out of scope**
-- Experience-period and rating-effective-date rules, combinability, ownership changes, corrections,
-  closed-claim revision, appeals (not implemented).
+- Combinability, ownership changes, corrections, closed-claim revision, appeals; Sec III R3(b)–(f) and R7;
+  Sec V R2–R4 (not implemented).
 - The Sept 2026 Plan values (eligibility $11,700, 3-decimal ELRs); the tables are not loaded.
 - The correctness of the source PDF itself. Tables are trusted once `tools/extract_tables.py` has parsed them,
   and spot-checked by hand-computed expectations in unit tests.
@@ -38,7 +39,7 @@ were a real product, because the techniques transfer.
 | Performance | k6 | `perf/` | NFR-P1..P6: latency percentiles, failure rate, check rate at design load; capacity knee | Production capacity (single local instance) |
 | Regression | All of the above in CI | `.github/workflows/ci.yml` | Every push and PR re-runs unit, API, UI, a11y and perf smoke; each fixed defect has a named regression test (`docs/DEFECTS.md`) | |
 
-Story IDs (`US-01`..`US-08`) appear in test titles. `npm run trace` builds `docs/TRACEABILITY.md` from them and
+Story IDs (`US-01`..`US-09`) appear in test titles. `npm run trace` builds `docs/TRACEABILITY.md` from them and
 fails CI if any story has no test.
 
 ## 3. Test design techniques used
@@ -91,6 +92,9 @@ fails CI if any story has no test.
    individually, and a multi-person accident (one capped line in the breakdown) counts as one entry.
 4. **Plan year:** only the Sept 1, 2025 Plan values are loaded (eligibility $10,800, 2-decimal ELRs). The Sept 2026
    Plan ($11,700, 3-decimal ELRs) is not.
+5. **Experience period and rating effective date:** A1–A6 in [ENGINE_PERIOD_RULES.md](ENGINE_PERIOD_RULES.md): half-open
+   period, month-end clamping, "more than 30 months" for prior use, first-policy rating date, annual anniversaries,
+   cancellation dates for term and lapse. They are returned with every response and asserted in tests.
 
 ## 7. Environments and data
 

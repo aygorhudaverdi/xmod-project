@@ -114,7 +114,7 @@ test("add and remove rows; reset clears results", async ({ page }) => {
 
 test("stories tab lists every story with acceptance criteria", async ({ page }) => {
   await page.getByTestId("tab-stories").click();
-  for (const id of ["US-01", "US-02", "US-03", "US-04", "US-05", "US-06", "US-07", "US-08"]) {
+  for (const id of ["US-01", "US-02", "US-03", "US-04", "US-05", "US-06", "US-07", "US-08", "US-09"]) {
     await expect(page.getByTestId(`story-${id}`)).toBeVisible();
   }
   await expect(page.locator("#panel-calc")).toBeHidden();

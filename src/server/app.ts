@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import { calculateMod, classCodes, classInfo, planInfo, ValidationError, type RatingInput } from "../engine/xmod.js";
+import { ratingEffectiveDate, selectExperience } from "../engine/period.js";
 import { summarizeMetrics, summarizePlaywright, type PromMetric } from "./stats.js";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -15,7 +16,10 @@ const ROOT = fileURLToPath(new URL("../../", import.meta.url));
  * Bounded `route` label: the matched route pattern, or one of two fixed buckets. Using the raw path for
  * unmatched requests let any client create a new time series per URL (DEF-003).
  */
-const FIXED_API_PATHS = new Set(["/api/health", "/api/plan", "/api/classes", "/api/xmod/calculate", "/metrics"]);
+const FIXED_API_PATHS = new Set([
+  "/api/health", "/api/plan", "/api/classes", "/api/xmod/calculate",
+  "/api/xmod/experience-period", "/api/xmod/rating-effective-date", "/metrics",
+]);
 function routeLabel(req: express.Request, res: express.Response): string {
   if (req.route?.path) return req.baseUrl + req.route.path;
   // Body-parser errors (400 malformed JSON, 413) are raised before routing; keep them on their endpoint.
@@ -128,6 +132,21 @@ export function createApp(options: AppOptions = {}) {
       apiError(res, 500, "INTERNAL", "Unexpected error");
     }
   });
+
+  // Experience period (Sec III R2-R3) and rating effective date (Sec V R1): separate endpoints so the
+  // calculate contract is untouched. experience-period returns a ratingInput ready for /api/xmod/calculate.
+  const engineRoute = (fn: (body: any) => unknown) => (req: express.Request, res: express.Response) => {
+    try {
+      res.json(fn(req.body));
+    } catch (e) {
+      if (e instanceof ValidationError) return apiError(res, 422, e.code, e.message);
+      if (e instanceof TypeError) return apiError(res, 400, "MALFORMED_REQUEST", "Request body does not have the expected shape");
+      console.error(e);
+      apiError(res, 500, "INTERNAL", "Unexpected error");
+    }
+  };
+  app.post("/api/xmod/experience-period", calculateLimiter, engineRoute((b) => selectExperience(b)));
+  app.post("/api/xmod/rating-effective-date", calculateLimiter, engineRoute((b) => ratingEffectiveDate(b)));
 
   app.get("/metrics", async (_req, res) => {
     res.set("Content-Type", registry.contentType);

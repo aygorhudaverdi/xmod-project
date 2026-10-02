@@ -18,6 +18,7 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | US-06 | Input validation and clear errors | 10 | 13 | 3 | 26 |
 | US-07 | Transparent breakdown | 0 | 1 | 4 | 5 |
 | US-08 | Quality dashboard | 14 | 3 | 10 | 27 |
+| US-09 | Experience period and rating effective date | 24 | 8 | 0 | 32 |
 
 ## US-01: Calculate a mod from payroll and claims
 
@@ -250,3 +251,52 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | ui | `tests/ui/dashboard.spec.ts` | US-08 shows an empty state when no Playwright results file exists |
 | ui | `tests/ui/dashboard.spec.ts` | US-08 renders pass/fail per project and the failed-test list |
 | ui | `tests/ui/dashboard.spec.ts` | US-08 a run with no failures says so |
+
+## US-09: Experience period and rating effective date
+
+> As a rating analyst I want the experience period and the rating effective date derived from the policy history so the right experience feeds the mod.
+
+**Acceptance criteria**
+
+1. Experience period is 3 years, from 4 years 9 months to 1 year 9 months before the rating effective date (Sec III R2)
+2. Only completed policies incepting in the period are used; a policy already used in mods for more than 2 years 6 months is excluded; unaudited payroll is excluded and flagged (Sec III R3)
+3. Rating effective date is 12 months after the preceding policy's effective date; a WCIRB-established date governs; a lapse of more than one year resets it (Sec V R1)
+4. Policies of 3 months or less, or that incept and expire between rating effective dates, do not establish a rating effective date (Sec V R1(c))
+5. Every interpretation the Plan does not settle is returned with the result and documented
+
+**Tests**
+
+| Level | File | Test |
+|---|---|---|
+| unit | `tests/unit/period.test.ts` | addMonths(%s, %i) = %s |
+| unit | `tests/unit/period.test.ts` | rejects impossible or badly formatted dates |
+| unit | `tests/unit/period.test.ts` | is 3 years: from 4y9m to 1y9m before the rating effective date |
+| unit | `tests/unit/period.test.ts` | an annually renewed risk has exactly 3 policies in its period |
+| unit | `tests/unit/period.test.ts` | boundaries: inception on the start date is in, inception on the end date is out (ASSUMPTION A1: half-open) |
+| unit | `tests/unit/period.test.ts` | property: with annual renewals, every policy is in exactly 3 consecutive yearly ratings (why A1 is half-open) |
+| unit | `tests/unit/period.test.ts` | R3(a): excludes a policy already used for MORE THAN 2 years 6 months; exactly 30 months stays |
+| unit | `tests/unit/period.test.ts` | only completed policy periods are used |
+| unit | `tests/unit/period.test.ts` | R3(g): unaudited payroll lines are dropped and flagged, audited lines and the policy's claims are kept |
+| unit | `tests/unit/period.test.ts` | aggregates audited payroll by class across included policies, and only their claims |
+| unit | `tests/unit/period.test.ts` | integration: the selected experience rates exactly like the hand-built reference risk |
+| unit | `tests/unit/period.test.ts` | validation: ids unique, dates real, expiration after effective, payroll non-negative |
+| unit | `tests/unit/period.test.ts` | is 12 months after the effective date of the preceding policy |
+| unit | `tests/unit/period.test.ts` | a late renewal keeps the anniversary (gap of one year or less) |
+| unit | `tests/unit/period.test.ts` | R1(a): a WCIRB-established date governs |
+| unit | `tests/unit/period.test.ts` | R1(b): no policy for MORE THAN one year after expiration resets to the new policy's effective date |
+| unit | `tests/unit/period.test.ts` | R1(b) boundary: a gap of exactly one year does not reset |
+| unit | `tests/unit/period.test.ts` | R1(b): a cancellation date, not the scheduled expiration, starts the lapse clock |
+| unit | `tests/unit/period.test.ts` | R1(c): a prior policy of three months or less is skipped when finding the preceding policy |
+| unit | `tests/unit/period.test.ts` | R1(c): a new policy of three months or less does not establish a new date |
+| unit | `tests/unit/period.test.ts` | R1(c): a policy that incepts and expires between known rating effective dates is skipped |
+| unit | `tests/unit/period.test.ts` | ASSUMPTION A5: anniversary equals the date when the new policy starts within its first year |
+| unit | `tests/unit/period.test.ts` | ASSUMPTION A4: a risk's first policy sets the rating effective date at its own inception |
+| unit | `tests/unit/period.test.ts` | every assumption used is documented |
+| api | `tests/api/period.api.spec.ts` | US-09 selects the three policies incepting in the period and explains every decision |
+| api | `tests/api/period.api.spec.ts` | US-09 integration: the returned ratingInput feeds /api/xmod/calculate unchanged |
+| api | `tests/api/period.api.spec.ts` | US-09 invalid policy data -> 422 in the standard error shape |
+| api | `tests/api/period.api.spec.ts` | US-09 a body of the wrong shape -> 4xx, never 500 |
+| api | `tests/api/period.api.spec.ts` | US-09 12 months after the preceding policy, with the rule cited |
+| api | `tests/api/period.api.spec.ts` | US-09 lapse of more than a year resets the date (V.1.b) |
+| api | `tests/api/period.api.spec.ts` | US-09 short-term policy does not establish a date (V.1.c) |
+| api | `tests/api/period.api.spec.ts` | US-09 cancellation outside the policy term -> 422 BAD_POLICY_TERM |

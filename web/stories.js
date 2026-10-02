@@ -26,4 +26,11 @@ export const STORIES = [
       "Refreshes every 5 seconds with a visible last-updated time; auto-refresh can be paused and resumed",
       "Shows Playwright pass/fail counts per project and the failed tests, or a clear empty state when no results exist",
       "Links to Grafana (default http://localhost:3001, configurable)"] },
+  { id: "US-09", title: "Experience period and rating effective date",
+    story: "As a rating analyst I want the experience period and the rating effective date derived from the policy history so the right experience feeds the mod.",
+    ac: ["Experience period is 3 years, from 4 years 9 months to 1 year 9 months before the rating effective date (Sec III R2)",
+      "Only completed policies incepting in the period are used; a policy already used in mods for more than 2 years 6 months is excluded; unaudited payroll is excluded and flagged (Sec III R3)",
+      "Rating effective date is 12 months after the preceding policy's effective date; a WCIRB-established date governs; a lapse of more than one year resets it (Sec V R1)",
+      "Policies of 3 months or less, or that incept and expire between rating effective dates, do not establish a rating effective date (Sec V R1(c))",
+      "Every interpretation the Plan does not settle is returned with the result and documented"] },
 ];
