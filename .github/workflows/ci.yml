@@ -82,6 +82,33 @@ jobs:
           fi
           cat audit.txt
 
+  perf-smoke:
+    name: Performance smoke (k6)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Start the app
+        run: |
+          npm start > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:3000/api/health && exit 0; sleep 1; done
+          cat server.log; exit 1
+      # grafana/k6-action is archived; setup-k6-action is its maintained replacement.
+      - uses: grafana/setup-k6-action@v1
+      - name: k6 smoke (thresholds fail the job)
+        run: k6 run perf/smoke.js
+      - name: Upload k6 summary
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: k6-smoke-summary
+          path: perf/results/
+          retention-days: 14
+
   deploy-report:
     name: Publish Playwright report to GitHub Pages
     needs: e2e

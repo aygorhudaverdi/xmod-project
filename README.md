@@ -40,6 +40,20 @@ Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · 
 The Pages job needs a one-time repository setting: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 After that, the latest report is at <https://aygorhudaverdi.github.io/xmod-project/>.
 
+## Performance (k6)
+
+```
+npm start
+k6 run perf/smoke.js     # 30 s, 1 VU, all endpoints; runs in CI (perf-smoke job)
+k6 run perf/load.js      # 0 → 50 VUs over 2 min, hold 3 min, realistic payload mix (~5% invalid → 422)
+k6 run perf/stress.js    # stepped arrival rate to find the knee
+```
+
+Thresholds: `http_req_failed` < 1% (expected 422s excluded), calculate p95 < 200 ms and p99 < 500 ms, checks > 99%.
+Summaries go to `perf/results/` (gitignored). See [perf/README.md](perf/README.md) for the scenarios, how to read
+results, and the last local run, and [perf/PERFORMANCE_REQUIREMENTS.md](perf/PERFORMANCE_REQUIREMENTS.md) for the NFRs
+(the project's own targets, not WCIRB's).
+
 ## Deploy
 
 The server runs the TypeScript sources through `tsx`, which is a runtime dependency. There is no build step, so
