@@ -42,10 +42,10 @@
   <div class="card card-gap">
     <h2>Claims</h2>
     <table class="entry" id="claim-rows" data-testid="claims-entry">
-      <thead><tr><th scope="col">Claim number</th><th scope="col">Injury type</th><th scope="col">Open/Closed</th><th scope="col">Incurred loss ($)</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+      <thead><tr><th scope="col">Claim number</th><th scope="col">Injury type</th><th scope="col">Open/Closed</th><th scope="col" title="Total claim value as of the last valuation date (medical + indemnity). The Plan limits it to the $175,000 Maximum Loss Value in the calculation.">Actual Losses ($)</th><th scope="col" class="n" title="Portion of the claim up to the risk's Primary Threshold, less $250. Depends on total expected losses, so it needs payroll first.">Actual Primary Losses ($)</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
     </table>
     <button class="btn" id="add-claim" data-testid="add-claim" type="button">+ Add claim</button>
-    <p class="note">Incurred loss is indemnity plus medical. Open/Closed is shown on the worksheet only and does not change the calculation. Rare cases (subrogation, fraud, joint coverage, non-compensable, EL + WC, multi-person accidents) are under each claim's <b>Special handling</b>.</p>
+    <p class="note">Actual Losses is indemnity plus medical as of the last valuation. Actual Primary Losses is calculated as you type, once payroll is entered; it is never typed. Open/Closed is shown on the worksheet only and does not change the calculation. Rare cases (subrogation, fraud, joint coverage, non-compensable, EL + WC, multi-person accidents) are under each claim's <b>Special handling</b>.</p>
   </div>
 
   <div class="card card-gap">

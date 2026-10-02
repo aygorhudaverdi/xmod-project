@@ -16,7 +16,7 @@ test.describe("US-07 security: user input is rendered inertly (XSS)", () => {
       await page.getByTestId("add-claim").click();
       const row = page.getByTestId("claim-row").nth(i);
       await row.getByTestId("claim-id").fill(id);
-      await row.getByTestId("incurred").fill("1000");
+      await row.getByTestId("actual-losses").fill("1000");
     }
     await page.getByTestId("calculate").click();
     await expect(page.getByTestId("claim-result")).toHaveCount(PAYLOADS.length);

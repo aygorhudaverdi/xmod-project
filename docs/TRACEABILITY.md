@@ -10,27 +10,28 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 
 | Story | Title | Unit | API | UI | Total |
 |---|---|---:|---:|---:|---:|
-| US-01 | Calculate a mod from a simple worksheet entry | 10 | 1 | 4 | 15 |
-| US-02 | Primary threshold and claim valuation | 4 | 1 | 1 | 6 |
-| US-03 | Exception claim types | 14 | 3 | 7 | 24 |
+| US-01 | Calculate a mod from a simple worksheet entry | 10 | 1 | 10 | 21 |
+| US-02 | Primary threshold and claim valuation | 4 | 1 | 3 | 8 |
+| US-03 | Exception claim types | 14 | 3 | 8 | 25 |
 | US-04 | Single-claim 25-point cap | 7 | 2 | 2 | 11 |
 | US-05 | Eligibility | 2 | 2 | 1 | 5 |
-| US-06 | Input validation and clear errors | 10 | 13 | 3 | 26 |
+| US-06 | Input validation and clear errors | 10 | 13 | 4 | 27 |
 | US-07 | Result laid out like the experience rating worksheet | 4 | 3 | 13 | 20 |
 | US-08 | Quality dashboard | 14 | 3 | 10 | 27 |
 | US-09 | Experience period and rating effective date | 24 | 8 | 0 | 32 |
 
 ## US-01: Calculate a mod from a simple worksheet entry
 
-> As a premium auditor I want to enter payroll by class and each claim's incurred loss, the way the experience rating worksheet lists them, and get the Experience Modification.
+> As a premium auditor I want to enter payroll by class and each claim's Actual Losses, the way the experience rating worksheet lists them, and get the Experience Modification.
 
 **Acceptance criteria**
 
 1. Experience Modification = (Actual Primary + Expected Excess) / Expected
 2. Expected Losses = Σ payroll × Expected Loss Rate / 100; per-capita classes are entered in units and not divided (the payroll label switches to units)
 3. Primary Threshold is looked up from total Expected Losses (Table II)
-4. A claim needs only Claim number, Injury type, Open/Closed and Incurred loss; Open/Closed does not affect the result
-5. Sample risks (loss-free, two small claims, one large claim, death claim, per-capita class) load with one click
+4. A claim needs only Claim number, Injury type, Open/Closed and Actual Losses; Open/Closed does not affect the result
+5. Actual Primary Losses is read-only and fills in live (about 300 ms after a change) once the form is calculable, otherwise it shows —; a multi-person accident shows its combined capped value on its first row
+6. Sample risks (loss-free, two small claims, one large claim, death claim, per-capita class) load with one click
 
 **Tests**
 
@@ -51,6 +52,12 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | ui | `tests/ui/calculator.spec.ts` | US-01 calculates the reference risk |
 | ui | `tests/ui/worksheet.spec.ts` | US-01 entering a per-capita class switches the payroll label to units and shows the ELR |
 | ui | `tests/ui/worksheet.spec.ts` | US-01 sample "${label}" gives mod ${mod} |
+| ui | `tests/ui/worksheet.spec.ts` | US-01 fills in without Calculate once payroll exists, and returns to — when payroll is cleared |
+| ui | `tests/ui/worksheet.spec.ts` | US-02 a 900,000 claim shows Actual Primary 8,250.00; after Calculate, Actual Losses 175,000.00 with the Plan-rule note |
+| ui | `tests/ui/worksheet.spec.ts` | US-02 a 200 claim shows Actual Primary 0.00 and no Plan-rule note |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 a multi-person accident shows the combined capped value once, then (included above) |
+| ui | `tests/ui/worksheet.spec.ts` | US-06 the live preview never shows an error banner; Calculate still does |
+| ui | `tests/ui/worksheet.spec.ts` | US-01 rapid typing is debounced into one request for the final value |
 
 ## US-02: Primary threshold and claim valuation
 
@@ -72,6 +79,8 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | unit | `tests/unit/xmod.test.ts` | US-02 every claim's Ap is within [0, PT-250] and Ap <= AL |
 | api | `tests/api/xmod.api.spec.ts` | US-02 $250 floor, threshold cap and MLV cap at PT 8,500 |
 | ui | `tests/ui/calculator.spec.ts` | US-02 a $250 claim contributes zero primary and a large claim is capped at threshold − $250 |
+| ui | `tests/ui/worksheet.spec.ts` | US-02 a 900,000 claim shows Actual Primary 8,250.00; after Calculate, Actual Losses 175,000.00 with the Plan-rule note |
+| ui | `tests/ui/worksheet.spec.ts` | US-02 a 200 claim shows Actual Primary 0.00 and no Plan-rule note |
 
 ## US-03: Exception claim types
 
@@ -109,10 +118,11 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | ui | `tests/ui/calculator.spec.ts` | US-03 non-compensable claim is excluded in the UI |
 | ui | `tests/ui/worksheet.spec.ts` | US-03 Death applies the $175,000 Average Death Value and Ap = PT - 250 |
 | ui | `tests/ui/worksheet.spec.ts` | US-03 "S" claim reveals Net incurred and uses the compromise ratio (100,000 gross, 40,000 net -> AL 70,000, Ap 3,150) |
-| ui | `tests/ui/worksheet.spec.ts` | US-03 Contract medical reveals Class, hides special handling, and Ap = incurred x D-ratio (500,000 in 0005 -> 113,000) |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 Contract medical reveals Class, hides special handling, and Ap = Actual Losses x D-ratio (500,000 in 0005 -> 113,000) |
 | ui | `tests/ui/worksheet.spec.ts` | US-03 subrogation and joint coverage reveal Net incurred and differ by $125 |
 | ui | `tests/ui/worksheet.spec.ts` | US-03 fraud treatment uses the net/gross ratio like subrogation |
 | ui | `tests/ui/worksheet.spec.ts` | US-03 non-compensable, EL + WC and accident id still work from the disclosure |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 a multi-person accident shows the combined capped value once, then (included above) |
 
 ## US-04: Single-claim 25-point cap
 
@@ -201,6 +211,7 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | ui | `tests/ui/a11y.spec.ts` | US-06 calculator tab showing a validation error (${scheme}) |
 | ui | `tests/ui/calculator.spec.ts` | US-06 unknown class shows an error and no mod |
 | ui | `tests/ui/calculator.spec.ts` | US-06 a later valid calculation clears the previous error |
+| ui | `tests/ui/worksheet.spec.ts` | US-06 the live preview never shows an error banner; Calculate still does |
 
 ## US-07: Result laid out like the experience rating worksheet
 

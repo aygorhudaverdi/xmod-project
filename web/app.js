@@ -59,6 +59,8 @@ const INJURY_TYPES = [
 ];
 const injuryLabel = (v) => (INJURY_TYPES.find(([k]) => k === v) ?? [, v])[1];
 const OPEN_CLOSED_HELP = "Informational only: open or closed status does not change the calculation.";
+const ACTUAL_LOSSES_HELP = "Total claim value as of the last valuation date (medical + indemnity). The Plan limits it to the $175,000 Maximum Loss Value in the calculation.";
+const ACTUAL_PRIMARY_HELP = "Portion of the claim up to the risk's Primary Threshold, less $250. Depends on total expected losses, so it needs payroll first.";
 
 // ---- payroll rows
 let seq = 0;
@@ -73,7 +75,7 @@ function addPayroll({ year = "", code = "", payroll = "" } = {}) {
     <td><label class="sr-only" for="${u}-pay" data-testid="payroll-label">Payroll ($)</label><input id="${u}-pay" data-field="payroll" data-testid="payroll" inputmode="decimal" placeholder="dollars" value="${esc(payroll)}"></td>
     <td class="hint" data-testid="elr-hint" aria-live="polite"></td>
     <td><button class="btn x" type="button" aria-label="Remove class" data-testid="remove-payroll">✕</button></td>`;
-  $(".x", tr).onclick = () => tr.remove();
+  $(".x", tr).onclick = () => { tr.remove(); schedulePreview(); };
   const codeInput = $("[data-field=classCode]", tr);
   const refresh = async () => {
     const code = codeInput.value.trim();
@@ -102,11 +104,12 @@ function addClaim(c = {}) {
       <td><label class="sr-only" for="${u}-id">Claim number</label><input id="${u}-id" data-field="id" data-testid="claim-id" maxlength="100" value="${esc(c.id ?? "C" + seq)}"></td>
       <td><label class="sr-only" for="${u}-inj">Injury type</label><select id="${u}-inj" data-field="injury" data-testid="injury-type">${opt(INJURY_TYPES, c.injury ?? "ttd")}</select></td>
       <td><label class="sr-only" for="${u}-oc">Open or closed</label><select id="${u}-oc" data-field="status" data-testid="open-closed" title="${OPEN_CLOSED_HELP}">${opt([["Open", "Open"], ["Closed", "Closed"]], c.status ?? "Open")}</select></td>
-      <td><label class="sr-only" for="${u}-inc">Incurred loss ($)</label><input id="${u}-inc" data-field="incurred" data-testid="incurred" inputmode="decimal" value="${esc(c.incurred ?? "")}"></td>
+      <td><label class="sr-only" for="${u}-al">Actual Losses ($)</label><input id="${u}-al" data-field="actualLosses" data-testid="actual-losses" inputmode="decimal" title="${esc(ACTUAL_LOSSES_HELP)}" value="${esc(c.actualLosses ?? "")}"></td>
+      <td class="n ap-cell" data-testid="actual-primary-input-row" aria-live="polite" title="${esc(ACTUAL_PRIMARY_HELP)}">—</td>
       <td><button class="btn x" type="button" aria-label="Remove claim" data-testid="remove-claim">✕</button></td>
     </tr>
     <tr class="claim-extra">
-      <td colspan="5">
+      <td colspan="6">
         <span class="extra" data-show="net" hidden><label for="${u}-net">Net incurred ($)</label><input id="${u}-net" data-field="netIncurred" data-testid="net-incurred" inputmode="decimal" value="${esc(c.netIncurred ?? "")}"></span>
         <span class="extra" data-show="cm" hidden><label for="${u}-cm">Class</label><input id="${u}-cm" data-field="cmClass" data-testid="cm-class" list="class-list" inputmode="numeric" maxlength="4" value="${esc(c.cmClass ?? "")}"></span>
         <details class="special" data-testid="special-handling" ${c.open ? "open" : ""}>
@@ -134,9 +137,10 @@ function addClaim(c = {}) {
   };
   g("injury").addEventListener("change", sync);
   g("treatment").addEventListener("change", sync);
-  $(".x", tb).onclick = () => tb.remove();
+  $(".x", tb).onclick = () => { tb.remove(); schedulePreview(); };
   $("#claim-rows").append(tb);
   sync();
+  schedulePreview();
 }
 $("#add-payroll").onclick = () => addPayroll();
 $("#add-claim").onclick = () => addClaim();
@@ -145,11 +149,11 @@ $("#add-claim").onclick = () => addClaim();
 const SAMPLES = [
   ["loss-free", "Loss-free", { payroll: [["2024", "0005", 1_000_000]], claims: [] }],
   ["two-small", "Two small claims", { payroll: [["2024", "0005", 1_000_000]], claims: [
-    { id: "C-1001", injury: "ttd", status: "Closed", incurred: 1_000 }, { id: "C-1002", injury: "med-only", status: "Closed", incurred: 1_000 }] }],
+    { id: "C-1001", injury: "ttd", status: "Closed", actualLosses: 1_000 }, { id: "C-1002", injury: "med-only", status: "Closed", actualLosses: 1_000 }] }],
   ["one-large", "One large claim (cap applies)", { payroll: [["2024", "0005", 1_000_000]], claims: [
-    { id: "C1", injury: "major-ppd", status: "Open", incurred: 20_000 }] }],
+    { id: "C1", injury: "major-ppd", status: "Open", actualLosses: 20_000 }] }],
   ["death", "Death claim", { payroll: [["2024", "0005", 3_000_000]], claims: [
-    { id: "D-2001", injury: "death", status: "Open", incurred: 250_000 }] }],
+    { id: "D-2001", injury: "death", status: "Open", actualLosses: 250_000 }] }],
   ["per-capita", "Per-capita class 7707", { payroll: [["2024", "7707", 100]], claims: [] }],
 ];
 $("#sample-select").innerHTML = SAMPLES.map(([k, l]) => `<option value="${k}" ${k === "one-large" ? "selected" : ""}>${esc(l)}</option>`).join("");
@@ -180,26 +184,29 @@ function collect() {
   }));
   const claims = [];
   const contractMedical = [];
-  const meta = { byId: new Map(), contractMedical: [] }; // display-only data the engine does not take
+  const meta = { byId: new Map(), contractMedical: [], accidentTyped: new Map() }; // display-only data the engine does not take
   for (const tb of document.querySelectorAll("#claim-rows tbody.claim")) {
     const g = (f) => $(`[data-field=${f}]`, tb);
     const injury = g("injury").value;
     const number = g("id").value.trim();
-    const incurred = Number(g("incurred").value || 0);
-    const info = { number, injury: injuryLabel(injury), status: g("status").value };
+    const typed = Number(g("actualLosses").value || 0); // indemnity + medical as entered, before Plan limits
+    const info = { number, injury: injuryLabel(injury), status: g("status").value, typed };
     if (injury === "contract-medical") {
-      contractMedical.push({ classCode: g("cmClass").value.trim(), incurred });
+      contractMedical.push({ classCode: g("cmClass").value.trim(), incurred: typed });
       meta.contractMedical.push(info);
       continue;
     }
-    const claim = { id: number, indemnity: incurred, medical: 0 }; // one incurred field: sent as indemnity, medical 0
+    const claim = { id: number, indemnity: typed, medical: 0 }; // one Actual Losses field: sent as indemnity, medical 0
     if (injury === "death") claim.death = true;
     if (injury === "s-claim") Object.assign(claim, { death: true, treatment: "compromise", netIncurred: numOrUndef(g("netIncurred").value) });
     else if (g("treatment").value !== "none") Object.assign(claim, { treatment: g("treatment").value, netIncurred: numOrUndef(g("netIncurred").value) });
     if (g("nonCompensable").checked) claim.nonCompensable = true;
     if (g("elAndWc").checked) claim.elAndWc = true;
     const accidentId = g("accidentId").value.trim();
-    if (accidentId) Object.assign(claim, { accidentId, multiPerson: true });
+    if (accidentId) {
+      Object.assign(claim, { accidentId, multiPerson: true });
+      meta.accidentTyped.set(accidentId, (meta.accidentTyped.get(accidentId) ?? 0) + typed);
+    }
     claims.push(claim);
     meta.byId.set(number, info);
   }
@@ -223,14 +230,73 @@ $("#calculate").onclick = async () => {
     const res = await fetch("/api/xmod/calculate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const body = await res.json();
     if (!res.ok) {
+      fillPrimaryCells(null);
       box.innerHTML = `<h2>Experience rating worksheet</h2><div class="err" role="alert" data-testid="error"><b data-testid="error-code">${esc(body.error.code)}</b>: <span data-testid="error-message">${esc(body.error.message)}</span></div>`;
       return;
     }
     render(box, body, { lines, meta, heading });
+    fillPrimaryCells(body);
   } catch {
     box.innerHTML = `<h2>Experience rating worksheet</h2><div class="err" role="alert" data-testid="error">Could not reach the server.</div>`;
   } finally { box.removeAttribute("aria-busy"); }
 };
+
+// ---- live Actual Primary Losses in the entry table
+// Debounced and silent: an incomplete or invalid form just shows "—". Only the Calculate button reports errors.
+// Each preview is a normal POST /api/xmod/calculate, so it also counts toward that endpoint's rate limit and metrics.
+const PREVIEW_DELAY_MS = 300;
+let previewTimer = null;
+let previewSeq = 0;
+let lastPreviewKey = null;
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(runPreview, PREVIEW_DELAY_MS);
+}
+async function runPreview() {
+  if (!document.querySelector("#claim-rows tbody.claim")) return; // nothing to fill
+  const { body } = collect();
+  if (!body.payroll.some((p) => p.payroll > 0)) { lastPreviewKey = null; return fillPrimaryCells(null); }
+  const key = JSON.stringify(body);
+  if (key === lastPreviewKey) return;
+  const mine = ++previewSeq;
+  let r = null;
+  try {
+    const res = await fetch("/api/xmod/calculate", { method: "POST", headers: { "content-type": "application/json" }, body: key });
+    if (res.ok) r = await res.json();
+  } catch { /* offline or server error: fall through to "—" */ }
+  if (mine !== previewSeq) return; // a newer preview superseded this one
+  lastPreviewKey = r ? key : null;
+  fillPrimaryCells(r);
+}
+/** Fill each claim row's Actual Primary cell from a calculate response (null = not calculable). */
+function fillPrimaryCells(r) {
+  const cmLines = r ? r.claims.filter((c) => c.id.startsWith("contract-medical:")) : [];
+  const byId = new Map(r ? r.claims.map((c) => [c.id, c]) : []);
+  const seenAccidents = new Set();
+  let cmi = 0;
+  for (const tb of document.querySelectorAll("#claim-rows tbody.claim")) {
+    const cell = $("[data-testid=actual-primary-input-row]", tb);
+    const g = (f) => $(`[data-field=${f}]`, tb);
+    if (!r) { cell.textContent = "—"; continue; }
+    let line;
+    if (g("injury").value === "contract-medical") {
+      line = cmLines[cmi++];
+    } else if (g("accidentId").value.trim()) {
+      // A multi-person accident is one combined, capped line: show it once, on the group's first row.
+      const acc = g("accidentId").value.trim();
+      if (seenAccidents.has(acc)) { cell.textContent = "(included above)"; continue; }
+      seenAccidents.add(acc);
+      line = r.claims.find((c) => c.id.startsWith(`accident:${acc} (`));
+    } else {
+      line = byId.get(g("id").value.trim());
+    }
+    cell.textContent = line ? money(line.actualPrimary) : "—";
+  }
+}
+for (const sel of ["#payroll-rows", "#claim-rows", "#prior-rated", "#excl-unaudited"]) {
+  $(sel).addEventListener("input", schedulePreview);
+  $(sel).addEventListener("change", schedulePreview);
+}
 
 // ---- render: worksheet layout
 const dash = (v) => (v ? esc(v) : "—");
@@ -257,9 +323,18 @@ function render(box, r, { lines, meta, heading }) {
   const claimRows = r.claims.map((c) => {
     let info = meta.byId.get(c.id);
     if (!info && c.id.startsWith("contract-medical:")) info = meta.contractMedical[cm++];
-    if (!info && c.id.startsWith("accident:")) info = { number: c.id, injury: "Multi-person accident", status: "" };
+    if (!info && c.id.startsWith("accident:")) {
+      const acc = c.id.slice("accident:".length, c.id.lastIndexOf(" ("));
+      info = { number: c.id, injury: "Multi-person accident", status: "", typed: meta.accidentTyped.get(acc) };
+    }
     info ??= { number: c.id, injury: "", status: "" };
-    return `<tr data-testid="claim-result"><th scope="row"><span data-testid="claim-number">${esc(info.number)}</span><span class="rule" data-testid="claim-rule" title="Plan rule applied">${esc(c.rule)}</span></th>
+    // The worksheet shows Plan-valued Actual Losses (MLV cap, Average Death Value, net/gross ratio, exclusions),
+    // which can differ from the amount entered; say so on the row instead of silently showing another number.
+    const limited = info.typed !== undefined && Math.round(info.typed * 100) !== Math.round(c.actualLosses * 100);
+    const rule = limited
+      ? `<span class="rule limit-note" data-testid="plan-limit-note" title="Entered ${money(info.typed)}">Limited by Plan rule: <span data-testid="claim-rule">${esc(c.rule)}</span></span>`
+      : `<span class="rule" data-testid="claim-rule" title="Plan rule applied">${esc(c.rule)}</span>`;
+    return `<tr data-testid="claim-result"><th scope="row"><span data-testid="claim-number">${esc(info.number)}</span>${rule}</th>
       <td>${esc(info.injury)}</td><td>${esc(info.status)}</td>${num(c.actualLosses, "al")}${num(c.actualPrimary, "ap")}${num(c.actualExcess, "ax")}</tr>`;
   }).join("") || `<tr><td colspan="6" class="note">No claims in the experience period.</td></tr>`;
 

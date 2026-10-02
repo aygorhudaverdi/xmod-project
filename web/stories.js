@@ -1,10 +1,11 @@
 export const STORIES = [
   { id: "US-01", title: "Calculate a mod from a simple worksheet entry",
-    story: "As a premium auditor I want to enter payroll by class and each claim's incurred loss, the way the experience rating worksheet lists them, and get the Experience Modification.",
+    story: "As a premium auditor I want to enter payroll by class and each claim's Actual Losses, the way the experience rating worksheet lists them, and get the Experience Modification.",
     ac: ["Experience Modification = (Actual Primary + Expected Excess) / Expected",
       "Expected Losses = Σ payroll × Expected Loss Rate / 100; per-capita classes are entered in units and not divided (the payroll label switches to units)",
       "Primary Threshold is looked up from total Expected Losses (Table II)",
-      "A claim needs only Claim number, Injury type, Open/Closed and Incurred loss; Open/Closed does not affect the result",
+      "A claim needs only Claim number, Injury type, Open/Closed and Actual Losses; Open/Closed does not affect the result",
+      "Actual Primary Losses is read-only and fills in live (about 300 ms after a change) once the form is calculable, otherwise it shows —; a multi-person accident shows its combined capped value on its first row",
       "Sample risks (loss-free, two small claims, one large claim, death claim, per-capita class) load with one click"] },
   { id: "US-02", title: "Primary threshold and claim valuation",
     story: "As a claims analyst I want each claim valued at the risk's primary threshold so the frequency-weighted formula is applied correctly.",

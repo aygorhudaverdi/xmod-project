@@ -9,13 +9,14 @@ const payroll = async (page: Page, code: string, amount: string, nth = 0) => {
   await row.getByTestId("class-code").fill(code);
   await row.getByTestId("payroll").fill(amount);
 };
-const claim = async (page: Page, o: { id?: string; injury?: string; status?: "Open" | "Closed"; incurred: string }) => {
+const claim = async (page: Page, o: { id?: string; injury?: string; status?: "Open" | "Closed"; actualLosses: string }) => {
   await page.getByTestId("add-claim").click();
-  const row = page.getByTestId("claim-row").last();
+  // Pin the row by index: a lazy .last() would re-resolve to whichever row is last when asserted.
+  const row = page.getByTestId("claim-row").nth((await page.getByTestId("claim-row").count()) - 1);
   if (o.id) await row.getByTestId("claim-id").fill(o.id);
   if (o.injury) await row.getByTestId("injury-type").selectOption(o.injury);
   if (o.status) await row.getByTestId("open-closed").selectOption(o.status);
-  await row.getByTestId("incurred").fill(o.incurred);
+  await row.getByTestId("actual-losses").fill(o.actualLosses);
   return row;
 };
 const result = (page: Page, id: string) => page.getByTestId("claim-result").filter({ has: page.getByTestId("claim-number").getByText(id, { exact: true }) });
@@ -30,8 +31,8 @@ test.beforeEach(async ({ page }) => { await page.goto("/"); });
 test.describe("US-07 worksheet entry", () => {
   test("US-07 a claim needs only the four visible fields; extras stay hidden", async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    const row = await claim(page, { id: "WC-1", injury: "minor-ppd", status: "Closed", incurred: "1000" });
-    for (const id of ["claim-id", "injury-type", "open-closed", "incurred"]) await expect(row.getByTestId(id)).toBeVisible();
+    const row = await claim(page, { id: "WC-1", injury: "minor-ppd", status: "Closed", actualLosses: "1000" });
+    for (const id of ["claim-id", "injury-type", "open-closed", "actual-losses", "actual-primary-input-row"]) await expect(row.getByTestId(id)).toBeVisible();
     await expect(row.getByTestId("net-incurred")).toBeHidden();
     await expect(row.getByTestId("cm-class")).toBeHidden();
     await expect(row.getByTestId("special-handling")).not.toHaveAttribute("open", "");
@@ -57,7 +58,7 @@ test.describe("US-07 worksheet entry", () => {
 
   test("US-07 Open/Closed is informational: same mod either way, and the control says so", async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    const row = await claim(page, { incurred: "20000", status: "Open" });
+    const row = await claim(page, { actualLosses: "20000", status: "Open" });
     await expect(row.getByTestId("open-closed")).toHaveAttribute("title", /does not change the calculation/);
     await calculate(page);
     const open = await page.getByTestId("mod-before-cap").textContent();
@@ -81,7 +82,7 @@ test.describe("US-07 worksheet entry", () => {
 test.describe("US-03 injury types drive the engine input", () => {
   test("US-03 Death applies the $175,000 Average Death Value and Ap = PT - 250", async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    await claim(page, { id: "D1", injury: "death", incurred: "40000" });
+    await claim(page, { id: "D1", injury: "death", actualLosses: "40000" });
     await calculate(page);
     const r = result(page, "D1");
     await expect(col(r, "al")).toHaveText("175,000.00");
@@ -91,7 +92,7 @@ test.describe("US-03 injury types drive the engine input", () => {
 
   test('US-03 "S" claim reveals Net incurred and uses the compromise ratio (100,000 gross, 40,000 net -> AL 70,000, Ap 3,150)', async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    const row = await claim(page, { id: "S1", injury: "s-claim", incurred: "100000" });
+    const row = await claim(page, { id: "S1", injury: "s-claim", actualLosses: "100000" });
     await expect(row.getByTestId("net-incurred")).toBeVisible();
     await expect(row.getByTestId("treatment")).toBeDisabled();
     await row.getByTestId("net-incurred").fill("40000");
@@ -103,9 +104,9 @@ test.describe("US-03 injury types drive the engine input", () => {
     await expect(r).toContainText('Compromised Death or "S" Claim');
   });
 
-  test("US-03 Contract medical reveals Class, hides special handling, and Ap = incurred x D-ratio (500,000 in 0005 -> 113,000)", async ({ page }) => {
+  test("US-03 Contract medical reveals Class, hides special handling, and Ap = Actual Losses x D-ratio (500,000 in 0005 -> 113,000)", async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    const row = await claim(page, { id: "CM-1", injury: "contract-medical", incurred: "500000" });
+    const row = await claim(page, { id: "CM-1", injury: "contract-medical", actualLosses: "500000" });
     await expect(row.getByTestId("cm-class")).toBeVisible();
     await expect(row.getByTestId("special-handling")).toBeHidden();
     await row.getByTestId("cm-class").fill("0005");
@@ -124,7 +125,7 @@ test.describe("US-03 special handling disclosure", () => {
     const ap = async (treatment: string) => {
       await page.getByTestId("reset").click();
       await payroll(page, "0005", "1000000");
-      const row = await claim(page, { id: "X", incurred: "10000" });
+      const row = await claim(page, { id: "X", actualLosses: "10000" });
       await row.getByTestId("special-handling").locator("summary").click();
       await row.getByTestId("treatment").selectOption(treatment);
       await expect(row.getByTestId("net-incurred")).toBeVisible();
@@ -137,7 +138,7 @@ test.describe("US-03 special handling disclosure", () => {
 
   test("US-03 fraud treatment uses the net/gross ratio like subrogation", async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    const row = await claim(page, { id: "F", incurred: "10000" });
+    const row = await claim(page, { id: "F", actualLosses: "10000" });
     await row.getByTestId("special-handling").locator("summary").click();
     await row.getByTestId("treatment").selectOption("fraud");
     await row.getByTestId("net-incurred").fill("5000");
@@ -148,14 +149,14 @@ test.describe("US-03 special handling disclosure", () => {
 
   test("US-03 non-compensable, EL + WC and accident id still work from the disclosure", async ({ page }) => {
     await payroll(page, "0005", "1000000");
-    const nc = await claim(page, { id: "NC", incurred: "50000" });
+    const nc = await claim(page, { id: "NC", actualLosses: "50000" });
     await nc.getByTestId("special-handling").locator("summary").click();
     await nc.getByTestId("non-compensable").check();
-    const el = await claim(page, { id: "EL", incurred: "20000" });
+    const el = await claim(page, { id: "EL", actualLosses: "20000" });
     await el.getByTestId("special-handling").locator("summary").click();
     await el.getByTestId("el-wc").check();
     for (const id of ["A", "B", "C"]) {
-      const r = await claim(page, { id, incurred: "20000" });
+      const r = await claim(page, { id, actualLosses: "20000" });
       await r.getByTestId("special-handling").locator("summary").click();
       await r.getByTestId("accident-id").fill("ACC-1");
     }
@@ -175,9 +176,9 @@ test.describe("US-07 worksheet results reconcile", () => {
     await payroll(page, "0005", "1000000");
     await page.getByTestId("add-payroll").click();
     await payroll(page, "3634", "500000", 1);
-    await claim(page, { id: "a", incurred: "4000" });
-    await claim(page, { id: "b", incurred: "300000" });
-    await claim(page, { id: "d", injury: "death", incurred: "90000" });
+    await claim(page, { id: "a", actualLosses: "4000" });
+    await claim(page, { id: "b", actualLosses: "300000" });
+    await claim(page, { id: "d", injury: "death", actualLosses: "90000" });
     await calculate(page);
 
     const classRows = page.getByTestId("class-row");
@@ -271,4 +272,79 @@ test.describe("US-01 sample risks", () => {
       if (key === "per-capita") await expect(col(page.getByTestId("class-row"), "payroll")).toHaveText("100 units");
     });
   }
+});
+
+test.describe("US-01 live Actual Primary Losses in the entry table", () => {
+  const apCell = (row: Locator) => row.getByTestId("actual-primary-input-row");
+
+  test("US-01 fills in without Calculate once payroll exists, and returns to — when payroll is cleared", async ({ page }) => {
+    const row = await claim(page, { id: "L1", actualLosses: "20000" });
+    await expect(apCell(row)).toHaveText("—"); // no payroll yet
+    await expect(apCell(row)).toHaveAttribute("aria-live", "polite");
+    await expect(apCell(row)).toHaveAttribute("title", /Primary Threshold, less \$250/);
+    await payroll(page, "0005", "1000000");
+    await expect(apCell(row)).toHaveText("8,250.00");
+    await expect(page.getByTestId("mod")).toHaveCount(0); // nothing was calculated into the result area
+    await page.getByTestId("payroll-row").first().getByTestId("payroll").fill("");
+    await expect(apCell(row)).toHaveText("—");
+  });
+
+  test("US-02 a 900,000 claim shows Actual Primary 8,250.00; after Calculate, Actual Losses 175,000.00 with the Plan-rule note", async ({ page }) => {
+    await payroll(page, "0005", "1000000");
+    const row = await claim(page, { id: "BIG", actualLosses: "900000" });
+    await expect(apCell(row)).toHaveText("8,250.00");
+    await expect(row.getByTestId("actual-losses")).toHaveAttribute("title", /\$175,000 Maximum Loss Value/);
+    await calculate(page);
+    const r = result(page, "BIG");
+    await expect(col(r, "al")).toHaveText("175,000.00");
+    await expect(r.getByTestId("plan-limit-note")).toContainText("Limited by Plan rule");
+    await expect(r.getByTestId("plan-limit-note")).toContainText("VI.2 ordinary");
+  });
+
+  test("US-02 a 200 claim shows Actual Primary 0.00 and no Plan-rule note", async ({ page }) => {
+    await payroll(page, "0005", "1000000");
+    const row = await claim(page, { id: "TINY", actualLosses: "200" });
+    await expect(apCell(row)).toHaveText("0.00");
+    await calculate(page);
+    await expect(result(page, "TINY").getByTestId("plan-limit-note")).toHaveCount(0);
+  });
+
+  test("US-03 a multi-person accident shows the combined capped value once, then (included above)", async ({ page }) => {
+    await payroll(page, "0005", "1000000");
+    const rows = [];
+    for (const id of ["A", "B", "C"]) {
+      const r = await claim(page, { id, actualLosses: "20000" });
+      await r.getByTestId("special-handling").locator("summary").click();
+      await r.getByTestId("accident-id").fill("A1");
+      rows.push(r);
+    }
+    await expect(apCell(rows[0])).toHaveText("16,500.00"); // 2 x 8,500 - 500
+    await expect(apCell(rows[1])).toHaveText("(included above)");
+    await expect(apCell(rows[2])).toHaveText("(included above)");
+  });
+
+  test("US-06 the live preview never shows an error banner; Calculate still does", async ({ page }) => {
+    await payroll(page, "9999", "1000");
+    const row = await claim(page, { id: "E1", actualLosses: "5000" });
+    await row.getByTestId("special-handling").locator("summary").click();
+    await row.getByTestId("treatment").selectOption("subrogation"); // and no net incurred: also invalid
+    await page.waitForResponse((r) => r.url().endsWith("/api/xmod/calculate"));
+    await expect(apCell(row)).toHaveText("—");
+    await expect(page.getByTestId("error")).toHaveCount(0);
+    await page.getByTestId("calculate").click();
+    await expect(page.getByTestId("error-code")).toHaveText("UNKNOWN_CLASS");
+    await expect(apCell(row)).toHaveText("—");
+  });
+
+  test("US-01 rapid typing is debounced into one request for the final value", async ({ page }) => {
+    await payroll(page, "0005", "1000000");
+    const row = await claim(page, { id: "D", actualLosses: "1" });
+    await expect(apCell(row)).toHaveText("0.00");
+    const bodies: string[] = [];
+    page.on("request", (r) => { if (r.url().endsWith("/api/xmod/calculate")) bodies.push(r.postData() ?? ""); });
+    await row.getByTestId("actual-losses").pressSequentially("2345", { delay: 20 }); // 12345, typed faster than 300 ms per key
+    await expect(apCell(row)).toHaveText("8,250.00");
+    expect(bodies).toHaveLength(1);
+    expect(JSON.parse(bodies[0]).claims[0]).toMatchObject({ id: "D", indemnity: 12345, medical: 0 });
+  });
 });

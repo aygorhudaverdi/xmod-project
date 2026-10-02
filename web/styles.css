@@ -84,3 +84,5 @@ th[scope=row] { font-weight:500; }
 .mod.mod-sm { font-size:28px; }
 details.explain { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
 details.explain summary { cursor:pointer; font-weight:600; }
+.ap-cell { white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--mute); min-width:9em; }
+.limit-note { color:var(--warn); }

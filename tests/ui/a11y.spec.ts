@@ -49,7 +49,7 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
           await page.getByTestId("add-claim").click();
           const row = page.getByTestId("claim-row").last();
           await row.getByTestId("injury-type").selectOption(injury);
-          await row.getByTestId("incurred").fill("1000");
+          await row.getByTestId("actual-losses").fill("1000");
         }
         await page.getByTestId("claim-row").nth(0).getByTestId("net-incurred").fill("500");
         await page.getByTestId("claim-row").nth(1).getByTestId("cm-class").fill("0005");

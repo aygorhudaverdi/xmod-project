@@ -5,11 +5,11 @@ const fillPayroll = async (page: Page, code: string, amount: string, nth = 0) =>
   await row.getByTestId("class-code").fill(code);
   await row.getByTestId("payroll").fill(amount);
 };
-const addClaim = async (page: Page, o: { id?: string; incurred: string }, nth = 0) => {
+const addClaim = async (page: Page, o: { id?: string; actualLosses: string }, nth = 0) => {
   await page.getByTestId("add-claim").click();
   const row = page.getByTestId("claim-row").nth(nth);
   if (o.id) await row.getByTestId("claim-id").fill(o.id);
-  await row.getByTestId("incurred").fill(o.incurred);
+  await row.getByTestId("actual-losses").fill(o.actualLosses);
   return row;
 };
 
@@ -34,8 +34,8 @@ test("US-01 calculates the reference risk", async ({ page }) => {
 
 test("US-07 shows claim breakdown with the applied rule", async ({ page }) => {
   await fillPayroll(page, "0005", "1000000");
-  await addClaim(page, { id: "C-100", incurred: "1000" });
-  await addClaim(page, { id: "C-200", incurred: "1000" }, 1);
+  await addClaim(page, { id: "C-100", actualLosses: "1000" });
+  await addClaim(page, { id: "C-200", actualLosses: "1000" }, 1);
   await page.getByTestId("calculate").click();
   await expect(page.getByTestId("claim-result")).toHaveCount(2);
   await expect(page.getByTestId("claim-result").first()).toContainText("C-100");
@@ -56,8 +56,8 @@ test("US-04 shows the cap badge, and removes it when unaudited payroll is exclud
 
 test("US-02 a $250 claim contributes zero primary and a large claim is capped at threshold − $250", async ({ page }) => {
   await fillPayroll(page, "0005", "1000000");
-  await addClaim(page, { id: "small", incurred: "250" });
-  await addClaim(page, { id: "large", incurred: "250000" }, 1);
+  await addClaim(page, { id: "small", actualLosses: "250" });
+  await addClaim(page, { id: "large", actualLosses: "250000" }, 1);
   await page.getByTestId("calculate").click();
   await expect(page.getByTestId("claim-result").nth(0)).toContainText("0.00");
   await expect(page.getByTestId("claim-result").nth(0)).toContainText("AL <= $250");
@@ -67,7 +67,7 @@ test("US-02 a $250 claim contributes zero primary and a large claim is capped at
 
 test("US-03 non-compensable claim is excluded in the UI", async ({ page }) => {
   await fillPayroll(page, "0005", "1000000");
-  const row = await addClaim(page, { incurred: "50000" });
+  const row = await addClaim(page, { actualLosses: "50000" });
   await row.getByTestId("special-handling").locator("summary").click();
   await row.getByTestId("non-compensable").check();
   await page.getByTestId("calculate").click();

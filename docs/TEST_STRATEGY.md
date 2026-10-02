@@ -85,6 +85,7 @@ fails CI if any story has no test.
 | Contract drift between API and UI | Medium / Medium | UI tests go through the real API, not mocks |
 | Flaky UI tests | Medium / Low | `data-testid` locators only, web-first assertions (no sleeps), one retry on CI only, traces kept on failure |
 | Performance regressions unnoticed | Low / Medium | perf smoke in CI; same thresholds as the production alerts |
+| Live Actual Primary preview adds traffic: every debounced edit is a real `POST /api/xmod/calculate`, so it counts toward the per-IP rate limit (120/min) and inflates `xmod_calculations_total` and the dashboard's "Calculations OK" | Medium / Low | 300 ms debounce, identical forms are not re-sent, nothing is sent until payroll exists, stale responses are dropped; a 429 shows "—" silently. If it matters, tag preview requests and exclude them from metrics and limits |
 | Vulnerable dependency | Medium / Medium | `npm audit` on every run (non-blocking but visible); helmet, CSP and rate limiting |
 
 ## 6. Assumptions (interpretations the Plan text does not settle)
