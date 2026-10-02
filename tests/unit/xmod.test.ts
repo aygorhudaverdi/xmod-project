@@ -15,7 +15,7 @@ const base = (claims: ClaimInput[] = [], extra: Partial<RatingInput> = {}): Rati
 const claim = (id: string, amount: number, extra: Partial<ClaimInput> = {}): ClaimInput =>
   ({ id, indemnity: amount, medical: 0, ...extra });
 
-describe("expected losses and primary threshold", () => {
+describe("US-01 expected losses and primary threshold", () => {
   it("matches the hand-computed reference risk", () => {
     const r = calculateMod(base());
     expect(r.expectedLosses).toBe(20200);
@@ -45,7 +45,7 @@ describe("expected losses and primary threshold", () => {
   });
 });
 
-describe("ordinary claim valuation (VI.2)", () => {
+describe("US-02 ordinary claim valuation (VI.2)", () => {
   it.each([
     [0, 0], [250, 0], [251, 1], [1000, 750], [8500, 8250], [8501, 8250], [20000, 8250], [175000, 8250], [900000, 8250],
   ])("claim of $%i -> Ap %i at PT 8,500", (amt, ap) => {
@@ -60,7 +60,7 @@ describe("ordinary claim valuation (VI.2)", () => {
   });
 });
 
-describe("exception claims (VI.2.a-j)", () => {
+describe("US-03 exception claims (VI.2.a-j)", () => {
   const net = (n: number, t: ClaimInput["treatment"], extra: Partial<ClaimInput> = {}): ClaimInput =>
     ({ id: "x", indemnity: 10_000, medical: 0, treatment: t, netIncurred: n, ...extra });
 
@@ -129,45 +129,45 @@ describe("exception claims (VI.2.a-j)", () => {
 });
 
 describe("modification, 25-point cap and eligibility", () => {
-  it("two small claims, no cap", () => {
+  it("US-01 US-04 two small claims, no cap", () => {
     const r = calculateMod(base([claim("a", 1000), claim("b", 1000)]));
     expect(r.actualPrimary).toBe(1500);
     expect(r.capApplied).toBe(false);
     expect(r.mod).toBe(0.85); // (1500+15634.8)/20200 = 0.8483
   });
-  it("single large claim is capped at loss-free + 0.25", () => {
+  it("US-04 single large claim is capped at loss-free + 0.25", () => {
     const r = calculateMod(base([claim("a", 20_000)]));
     expect(Number(r.modUnrounded)).toBeCloseTo(1.024, 9); // uncapped would be 1.1824
     expect(r.capApplied).toBe(true);
     expect(r.mod).toBe(1.02);
   });
-  it("cap does not bind when single claim stays under it", () => {
+  it("US-04 cap does not bind when single claim stays under it", () => {
     const r = calculateMod(base([claim("a", 1000)]));
     expect(r.capApplied).toBe(false);
   });
-  it("cap does not apply when unaudited payroll was excluded", () => {
+  it("US-04 cap does not apply when unaudited payroll was excluded", () => {
     const r = calculateMod(base([claim("a", 20_000)], { excludedUnauditedPayroll: true }));
     expect(r.capApplied).toBe(false);
     expect(r.mod).toBe(1.18);
   });
-  it("cap does not apply with two claims having primary", () => {
+  it("US-04 cap does not apply with two claims having primary", () => {
     const r = calculateMod(base([claim("a", 20_000), claim("b", 20_000)]));
     expect(r.capApplied).toBe(false);
   });
-  it("claims of $250 or less count as zero-primary and do not trigger the 'two claims' rule", () => {
+  it("US-04 claims of $250 or less count as zero-primary and do not trigger the 'two claims' rule", () => {
     const r = calculateMod(base([claim("a", 20_000), claim("b", 200)]));
     expect(r.claimsWithPrimary).toBe(1);
     expect(r.capApplied).toBe(true);
   });
 
-  it("eligibility threshold boundary (E = 10,800 exactly)", () => {
+  it("US-05 eligibility threshold boundary (E = 10,800 exactly)", () => {
     const at = calculateMod({ payroll: [{ classCode: "3634", payroll: 900_000 }], claims: [] });
     const below = calculateMod({ payroll: [{ classCode: "3634", payroll: 899_999 }], claims: [] });
     expect(at.expectedLosses).toBe(10800);
     expect(at.eligible).toBe(true);
     expect(below.eligible).toBe(false);
   });
-  it("below threshold: prior-year-rated risk qualifies only if mod > 1.00", () => {
+  it("US-05 below threshold: prior-year-rated risk qualifies only if mod > 1.00", () => {
     const small = (claims: ClaimInput[]) => ({
       payroll: [{ classCode: "3634", payroll: 800_000 }], claims, priorYearExperienceRated: true,
     });
@@ -176,7 +176,7 @@ describe("modification, 25-point cap and eligibility", () => {
   });
 });
 
-describe("input validation", () => {
+describe("US-06 input validation", () => {
   const bad = (i: RatingInput) => { try { calculateMod(i); return null; } catch (e) { return (e as ValidationError).code; } };
   it("rejects unknown class", () => expect(bad({ payroll: [{ classCode: "9999", payroll: 1 }], claims: [] })).toBe("UNKNOWN_CLASS"));
   it("rejects negative payroll", () => expect(bad({ payroll: [{ classCode: "0005", payroll: -1 }], claims: [] })).toBe("BAD_PAYROLL"));
@@ -206,32 +206,32 @@ describe("properties", () => {
   const dedupe = (i: RatingInput): RatingInput => ({ ...i, payroll: [...new Map(i.payroll.map((p) => [p.classCode, p])).values()] });
   const opts = { numRuns: 300 };
 
-  it("loss-free mod is a lower bound and mod = loss-free when there are no claims", () => {
+  it("US-01 loss-free mod is a lower bound and mod = loss-free when there are no claims", () => {
     fc.assert(fc.property(ratingArb, (i) => {
       const r = calculateMod({ ...dedupe(i), claims: [] });
       expect(r.mod).toBe(r.lossFreeMod);
     }), opts);
   });
-  it("adding a claim never lowers the mod", () => {
+  it("US-01 adding a claim never lowers the mod", () => {
     fc.assert(fc.property(ratingArb, claimArb, (i, extra) => {
       const d = dedupe(i);
       const a = calculateMod(d), b = calculateMod({ ...d, claims: [...d.claims, extra] });
       expect(Number(b.modUnrounded)).toBeGreaterThanOrEqual(Number(a.modUnrounded) - 1e-9);
     }), opts);
   });
-  it("mod is never below the loss-free mod", () => {
+  it("US-01 mod is never below the loss-free mod", () => {
     fc.assert(fc.property(ratingArb, (i) => {
       const r = calculateMod(dedupe(i));
       expect(Number(r.modUnrounded)).toBeGreaterThanOrEqual(Number(r.lossFreeModUnrounded) - 1e-9);
     }), opts);
   });
-  it("a risk with at most one primary-bearing claim never exceeds loss-free + 0.25", () => {
+  it("US-04 a risk with at most one primary-bearing claim never exceeds loss-free + 0.25", () => {
     fc.assert(fc.property(ratingArb, claimArb, (i, one) => {
       const r = calculateMod({ ...dedupe(i), claims: [one] });
       expect(Number(r.modUnrounded)).toBeLessThanOrEqual(Number(r.lossFreeModUnrounded) + 0.25 + 1e-9);
     }), opts);
   });
-  it("every claim's Ap is within [0, PT-250] and Ap <= AL", () => {
+  it("US-02 every claim's Ap is within [0, PT-250] and Ap <= AL", () => {
     fc.assert(fc.property(ratingArb, (i) => {
       const r = calculateMod(dedupe(i));
       for (const c of r.claims) {
@@ -241,20 +241,20 @@ describe("properties", () => {
       }
     }), opts);
   });
-  it("claim order does not change the mod", () => {
+  it("US-01 claim order does not change the mod", () => {
     fc.assert(fc.property(ratingArb, (i) => {
       const d = dedupe(i);
       expect(calculateMod({ ...d, claims: [...d.claims].reverse() }).modUnrounded).toBe(calculateMod(d).modUnrounded);
     }), opts);
   });
-  it("non-compensable claims are ignored", () => {
+  it("US-03 non-compensable claims are ignored", () => {
     fc.assert(fc.property(ratingArb, claimArb, (i, extra) => {
       const d = dedupe(i);
       expect(calculateMod({ ...d, claims: [...d.claims, { ...extra, nonCompensable: true }] }).modUnrounded)
         .toBe(calculateMod(d).modUnrounded);
     }), opts);
   });
-  it("Expected primary + expected excess = expected losses", () => {
+  it("US-01 Expected primary + expected excess = expected losses", () => {
     fc.assert(fc.property(ratingArb, (i) => {
       const r = calculateMod(dedupe(i));
       expect(Math.abs(r.expectedPrimary + r.expectedExcess - r.expectedLosses)).toBeLessThan(0.02);

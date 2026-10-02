@@ -128,6 +128,9 @@ export interface TestResultsSummary {
 }
 
 const stripAnsi = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, "");
+const STATUS_KEY: Record<string, keyof Omit<ProjectCounts, "total">> = {
+  expected: "passed", unexpected: "failed", flaky: "flaky", skipped: "skipped",
+};
 const empty = (): ProjectCounts => ({ passed: 0, failed: 0, flaky: 0, skipped: 0, total: 0 });
 
 export function summarizePlaywright(report: PwReport): TestResultsSummary {
@@ -141,7 +144,7 @@ export function summarizePlaywright(report: PwReport): TestResultsSummary {
       for (const t of spec.tests) {
         const p = (projects[t.projectName || "default"] ??= empty());
         // Playwright statuses: expected | unexpected | flaky | skipped
-        const key = ({ expected: "passed", unexpected: "failed", flaky: "flaky", skipped: "skipped" } as const)[t.status as "expected"] ?? "failed";
+        const key: keyof Omit<ProjectCounts, "total"> = STATUS_KEY[t.status] ?? "failed";
         p[key]++; p.total++; totals[key]++; totals.total++;
         if (key === "failed") {
           const last = t.results.at(-1);

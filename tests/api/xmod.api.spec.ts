@@ -30,7 +30,7 @@ test.describe("health, plan and reference data", () => {
   });
 });
 
-test.describe("US-01/US-07 calculate", () => {
+test.describe("calculate", () => {
   test("US-01 loss-free reference risk", async ({ request }) => {
     const r = await calc(request, risk());
     expect(r.status()).toBe(200);
@@ -46,7 +46,18 @@ test.describe("US-01/US-07 calculate", () => {
   });
 });
 
-test.describe("US-03/US-04 rules end to end", () => {
+test.describe("rules end to end", () => {
+  test("US-02 $250 floor, threshold cap and MLV cap at PT 8,500", async ({ request }) => {
+    const b = await (await calc(request, risk([
+      { id: "floor", indemnity: 250, medical: 0 }, { id: "just-over", indemnity: 251, medical: 0 },
+      { id: "big", indemnity: 150_000, medical: 100_000 },
+    ]))).json();
+    expect(b.primaryThreshold).toBe(8500);
+    const byId = Object.fromEntries(b.claims.map((c: { id: string }) => [c.id, c]));
+    expect(byId.floor).toMatchObject({ actualLosses: 250, actualPrimary: 0 });
+    expect(byId["just-over"]).toMatchObject({ actualLosses: 251, actualPrimary: 1 });
+    expect(byId.big).toMatchObject({ actualLosses: 175_000, actualPrimary: 8_250 });
+  });
   test("US-04 single large claim is capped", async ({ request }) => {
     const b = await (await calc(request, risk([{ id: "a", indemnity: 20_000, medical: 0 }]))).json();
     expect(b).toMatchObject({ capApplied: true, mod: 1.02, claimsWithPrimary: 1 });

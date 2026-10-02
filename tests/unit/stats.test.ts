@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { histogramQuantile, summarizeMetrics, summarizePlaywright, type PromMetric, type PwReport } from "../../src/server/stats";
 
-describe("histogramQuantile (same estimate as PromQL histogram_quantile)", () => {
+describe("US-08 histogramQuantile (same estimate as PromQL histogram_quantile)", () => {
   const b = (pairs: [number, number][]) => pairs.map(([le, count]) => ({ le, count }));
   it("returns null with no observations", () => {
     expect(histogramQuantile(0.95, b([[0.1, 0], [Infinity, 0]]))).toBeNull();
@@ -21,7 +21,7 @@ describe("histogramQuantile (same estimate as PromQL histogram_quantile)", () =>
   });
 });
 
-describe("summarizeMetrics", () => {
+describe("US-08 summarizeMetrics", () => {
   const h = (route: string, status: number, buckets: [string, number][], count: number): PromMetric["values"] => [
     ...buckets.map(([le, value]) => ({ value, labels: { le, method: "POST", route, status }, metricName: "xmod_http_request_duration_seconds_bucket" })),
     { value: count, labels: { method: "POST", route, status }, metricName: "xmod_http_request_duration_seconds_count" },
@@ -77,24 +77,24 @@ describe("summarizeMetrics", () => {
   });
 });
 
-describe("summarizePlaywright", () => {
-  const test = (projectName: string, status: string, message?: string) => ({
+describe("US-08 summarizePlaywright", () => {
+  const pwTest = (projectName: string, status: string, message?: string) => ({
     projectName, status, results: [{ status: status === "expected" ? "passed" : "failed", errors: message ? [{ message }] : [] }],
   });
   const report: PwReport = {
     stats: { startTime: "2026-01-01T00:00:00Z", duration: 1234 },
     suites: [{
       title: "api/x.spec.ts", file: "api/x.spec.ts",
-      specs: [{ title: "top-level", file: "api/x.spec.ts", line: 3, tests: [test("api", "expected")] }],
+      specs: [{ title: "top-level", file: "api/x.spec.ts", line: 3, tests: [pwTest("api", "expected")] }],
       suites: [{
         title: "US-06 validation", specs: [
-          { title: "rejects", file: "api/x.spec.ts", line: 9, tests: [test("api", "unexpected", "\u001b[31mError: expect(received).toBe(expected)\u001b[39m\n\nExpected: 422")] },
-          { title: "flaky one", file: "api/x.spec.ts", line: 12, tests: [test("api", "flaky")] },
+          { title: "rejects", file: "api/x.spec.ts", line: 9, tests: [pwTest("api", "unexpected", "\u001b[31mError: expect(received).toBe(expected)\u001b[39m\n\nExpected: 422")] },
+          { title: "flaky one", file: "api/x.spec.ts", line: 12, tests: [pwTest("api", "flaky")] },
         ],
       }],
     }, {
       title: "ui/y.spec.ts", file: "ui/y.spec.ts",
-      specs: [{ title: "page", file: "ui/y.spec.ts", line: 1, tests: [test("ui", "expected"), test("ui", "skipped")] }],
+      specs: [{ title: "page", file: "ui/y.spec.ts", line: 1, tests: [pwTest("ui", "expected"), pwTest("ui", "skipped")] }],
     }],
   };
   const s = summarizePlaywright(report);

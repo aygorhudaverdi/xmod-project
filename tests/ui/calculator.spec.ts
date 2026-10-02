@@ -55,6 +55,17 @@ test("US-04 shows the cap badge, and removes it when unaudited payroll is exclud
   await expect(page.getByTestId("mod")).toContainText("1.18");
 });
 
+test("US-02 a $250 claim contributes zero primary and a large claim is capped at threshold − $250", async ({ page }) => {
+  await fillPayroll(page, "0005", "1000000");
+  await addClaim(page, { id: "small", indemnity: "250" });
+  await addClaim(page, { id: "large", indemnity: "150000", medical: "100000" }, 1);
+  await page.getByTestId("calculate").click();
+  await expect(page.getByTestId("claim-result").nth(0)).toContainText("0.00");
+  await expect(page.getByTestId("claim-result").nth(0)).toContainText("AL <= $250");
+  await expect(page.getByTestId("claim-result").nth(1)).toContainText("175,000.00");
+  await expect(page.getByTestId("claim-result").nth(1)).toContainText("8,250.00");
+});
+
 test("US-03 non-compensable claim is excluded in the UI", async ({ page }) => {
   await fillPayroll(page, "0005", "1000000");
   const row = await addClaim(page, { indemnity: "50000" });

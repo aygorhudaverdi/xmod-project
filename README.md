@@ -20,11 +20,25 @@ npx playwright test                # API + UI tests; starts its own server on :3
 npx playwright show-report         # open the HTML report
 ```
 
+Also: `npm run typecheck` (strict TypeScript) and `npm run trace` (regenerate the story → test matrix; add
+`-- --check` to fail when a story has no tests, as CI does).
+
 If `npx playwright install` is not possible (locked-down sandbox), point `CHROMIUM_PATH` at an existing
 Chromium binary instead.
 
 Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · `web` (UI) ·
 `tests/{unit,api,ui}` · `data` (tables parsed from the Plan PDF by `tools/extract_tables.py`).
+
+## Test documentation
+
+| Document | What it covers |
+|---|---|
+| [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md) | Scope, test levels and what each one proves, design techniques, entry/exit criteria, risks, assumptions |
+| [docs/TRACEABILITY.md](docs/TRACEABILITY.md) | Story → acceptance criteria → tests, generated from test titles by `npm run trace` |
+| [docs/DEFECTS.md](docs/DEFECTS.md) | Defect template, every defect found (steps, expected/actual, root cause, fix, regression test), and the trend |
+| [docs/TEST_PROCESS_IMPROVEMENTS.md](docs/TEST_PROCESS_IMPROVEMENTS.md) | Retrospective: what the tests missed first and how the process was tightened |
+| [docs/SECURITY_AND_A11Y.md](docs/SECURITY_AND_A11Y.md) | Security controls and tests, accessibility findings and fixes, known gaps |
+| [perf/PERFORMANCE_REQUIREMENTS.md](perf/PERFORMANCE_REQUIREMENTS.md) | NFRs behind the k6 thresholds and the alert rules |
 
 ## In-app quality dashboard
 
@@ -47,9 +61,11 @@ with `?grafana=https://your-grafana`, which is remembered.
 
 | Job | What it runs | Local equivalent |
 |---|---|---|
+| `checks` | strict type-check, traceability gate (`npm run trace -- --check`); matrix summary in the job summary | `npm run typecheck && npm run trace -- --check` |
 | `unit` (Node 20 and 22) | `npm ci`, `npm run test:unit` | `npm run test:unit` |
 | `e2e` | `npx playwright install --with-deps chromium`, `npx playwright test`; uploads `playwright-report/` and `test-results/` as artifacts even when tests fail | `npx playwright test` |
 | `audit` | `npm audit --audit-level=high`; findings show up as a warning annotation and in the job summary, but don't fail the build | `npm audit --audit-level=high` |
+| `perf-smoke` | starts the app (rate limit raised), runs `k6 run perf/smoke.js`; thresholds fail the job; uploads the k6 summary JSON | `RATE_LIMIT_MAX=1000000 npm start` then `k6 run perf/smoke.js` |
 | `deploy-report` | On `main` only: publishes the Playwright HTML report to GitHub Pages, including failing runs | n/a |
 
 The Pages job needs a one-time repository setting: **Settings → Pages → Build and deployment → Source: GitHub Actions**.

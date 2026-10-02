@@ -30,6 +30,23 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
 
+  checks:
+    name: Type-check + traceability gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # Fails if a user story has no automated test, or docs/TRACEABILITY.md was not regenerated.
+      - run: npm run trace -- --check
+      - name: Traceability summary
+        if: ${{ !cancelled() }}
+        run: sed -n '/^## Summary/,/^## US-01/p' docs/TRACEABILITY.md | sed '$d' >> "$GITHUB_STEP_SUMMARY"
+
   e2e:
     name: API + UI tests (Playwright)
     runs-on: ubuntu-latest
