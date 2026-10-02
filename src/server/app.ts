@@ -1,8 +1,13 @@
 import express from "express";
 import client from "prom-client";
 import { fileURLToPath } from "node:url";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import { calculateMod, classCodes, classInfo, planInfo, ValidationError, type RatingInput } from "../engine/xmod.js";
+import { summarizeMetrics, summarizePlaywright, type PromMetric } from "./stats.js";
+
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 /**
  * Bounded `route` label: the matched route pattern, or one of two fixed buckets. Using the raw path for
@@ -80,6 +85,33 @@ export function createApp() {
   app.get("/metrics", async (_req, res) => {
     res.set("Content-Type", registry.contentType);
     res.end(await registry.metrics());
+  });
+
+  // ---- Quality dashboard feeds (JSON views of /metrics and of the Playwright JSON report)
+  app.get("/api/stats", async (_req, res) => {
+    const metrics = (await registry.getMetricsAsJSON()) as unknown as PromMetric[];
+    res.set("Cache-Control", "no-store");
+    res.json({
+      ...summarizeMetrics(metrics, process.uptime()),
+      links: { grafana: process.env.GRAFANA_URL || "http://localhost:3001" },
+    });
+  });
+
+  // Fixed server-side path (env or default); never taken from the request.
+  const resultsPath = resolve(ROOT, process.env.TEST_RESULTS_PATH || "test-results/results.json");
+  app.get("/api/test-results", async (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    let raw: string;
+    try {
+      raw = await readFile(resultsPath, "utf8");
+    } catch {
+      return res.json({ available: false, message: "No Playwright results found. Run `npx playwright test`, then refresh." });
+    }
+    try {
+      res.json(summarizePlaywright(JSON.parse(raw)));
+    } catch {
+      res.json({ available: false, message: "The Playwright results file could not be read (invalid or partial JSON)." });
+    }
   });
 
   app.use(express.static(fileURLToPath(new URL("../../web", import.meta.url))));

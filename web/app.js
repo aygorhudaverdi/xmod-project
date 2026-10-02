@@ -8,6 +8,7 @@ const tabs = [["calc", "panel-calc"], ["stories", "panel-stories"], ["dash", "pa
 for (const [k, panel] of tabs) {
   $(`#tab-${k}`).addEventListener("click", () => {
     for (const [k2, p2] of tabs) { $(`#tab-${k2}`).setAttribute("aria-selected", String(k2 === k)); $(`#${p2}`).hidden = p2 !== panel; }
+    dashboard.setActive(k === "dash");
   });
 }
 
@@ -131,3 +132,107 @@ function render(box, r) {
     <p class="note">Mod rounding (2 decimals, half-up) is an assumption; the Plan text read so far does not state it.</p>`;
 }
 reset();
+
+// ---- quality dashboard
+const fmtInt = (n) => Number(n).toLocaleString("en-US");
+const fmtUptime = (s) => {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return `${h ? `${h}h ` : ""}${String(m).padStart(h ? 2 : 1, "0")}m ${String(sec).padStart(2, "0")}s`;
+};
+const GRAFANA_DEFAULT = "http://localhost:3001";
+
+function createDashboard() {
+  const REFRESH_MS = 5000;
+  let active = false, paused = false, timer = null;
+
+  // Grafana link: ?grafana=<url> overrides and is remembered; otherwise the server's GRAFANA_URL, else the default.
+  let grafanaOverride = null;
+  try {
+    const q = new URLSearchParams(location.search).get("grafana");
+    if (q && /^https?:\/\//.test(q)) localStorage.setItem("xmod.grafanaUrl", q);
+    grafanaOverride = localStorage.getItem("xmod.grafanaUrl");
+  } catch { /* storage unavailable: fall back to server/default */ }
+  const setGrafana = (url) => { $("#grafana-link").href = grafanaOverride || url || GRAFANA_DEFAULT; };
+  setGrafana(null);
+
+  async function refreshStats() {
+    try {
+      const res = await fetch("/api/stats", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      const s = await res.json();
+      $("#dash-total-requests").textContent = fmtInt(s.totalRequests);
+      $("#dash-calc-ok").textContent = fmtInt(s.calculations.ok);
+      $("#dash-calc-invalid").textContent = fmtInt(s.calculations.validation_error);
+      $("#dash-calc-error").textContent = fmtInt(s.calculations.server_error);
+      $("#dash-p95").textContent = s.latency.p95Ms === null ? "–" : `${s.latency.p95Ms} ms`;
+      $("#dash-uptime").textContent = fmtUptime(s.uptimeSeconds);
+      $("#dash-mod-mean").textContent = s.mods.count ? `(${fmtInt(s.mods.count)} mods, mean ${s.mods.mean.toFixed(3)})` : "(none yet)";
+      renderModRows(s.mods);
+      setGrafana(s.links?.grafana);
+      const now = new Date();
+      $("#dash-updated").textContent = now.toLocaleTimeString("en-US", { hour12: false });
+      $("#dash-updated").dateTime = now.toISOString();
+      $("#dash-status").textContent = "";
+    } catch {
+      $("#dash-status").textContent = "Could not load stats; retrying.";
+    }
+  }
+
+  function renderModRows(mods) {
+    const tbody = $("#dash-mod-rows");
+    tbody.replaceChildren();
+    const max = Math.max(1, ...mods.buckets.map((b) => b.count));
+    for (const b of mods.buckets) {
+      const tr = document.createElement("tr");
+      tr.dataset.testid = "dash-mod-bucket";
+      const range = document.createElement("td"); range.textContent = b.le;
+      const count = document.createElement("td"); count.className = "n"; count.textContent = fmtInt(b.count);
+      const barCell = document.createElement("td"); barCell.className = "bar-cell";
+      const bar = document.createElement("div"); bar.className = "bar";
+      bar.style.width = `${(b.count / max) * 100}%`; // CSSOM, not a style attribute, so the CSP allows it
+      barCell.append(bar);
+      tr.append(range, count, barCell);
+      tbody.append(tr);
+    }
+  }
+
+  async function refreshTestResults() {
+    const box = $("#test-results-body");
+    try {
+      const r = await (await fetch("/api/test-results", { cache: "no-store" })).json();
+      if (!r.available) {
+        box.innerHTML = `<p class="note" data-testid="test-results-empty">${esc(r.message ?? "No test results yet.")}</p>`;
+        return;
+      }
+      const rows = Object.entries(r.projects).map(([name, c]) => `
+        <tr data-testid="test-results-project" data-project="${esc(name)}"><td>${esc(name)}</td>
+        <td class="n" data-testid="tr-passed">${c.passed}</td><td class="n" data-testid="tr-failed">${c.failed}</td>
+        <td class="n" data-testid="tr-flaky">${c.flaky}</td><td class="n" data-testid="tr-skipped">${c.skipped}</td><td class="n">${c.total}</td></tr>`).join("");
+      const when = r.startTime ? `Run started ${esc(new Date(r.startTime).toLocaleString("en-US"))}` : "Last run";
+      const dur = r.durationMs != null ? `, took ${(r.durationMs / 1000).toFixed(1)} s` : "";
+      const failed = r.failed.length
+        ? `<h3 class="sub">Failed tests (${r.failed.length})</h3><ol class="fail-list" data-testid="test-results-failed">${r.failed.map((f) => `
+            <li data-testid="failed-test"><b>[${esc(f.project)}]</b> ${esc(f.title)} <span class="note">${esc(f.file)}:${Number(f.line)}</span><br><code>${esc(f.error)}</code></li>`).join("")}</ol>`
+        : `<p data-testid="test-results-all-passed">No failed tests.</p>`;
+      box.innerHTML = `<p class="note">${when}${dur}. Source: Playwright JSON reporter (<code>test-results/results.json</code>).</p>
+        <table data-testid="test-results-table"><thead><tr><th scope="col">Project</th><th scope="col" class="n">Passed</th><th scope="col" class="n">Failed</th><th scope="col" class="n">Flaky</th><th scope="col" class="n">Skipped</th><th scope="col" class="n">Total</th></tr></thead>
+        <tbody>${rows}</tbody></table>${failed}`;
+    } catch {
+      box.innerHTML = `<p class="note" data-testid="test-results-error">Could not load test results.</p>`;
+    }
+  }
+
+  const tick = () => { refreshStats(); refreshTestResults(); };
+  function schedule() {
+    clearInterval(timer); timer = null;
+    if (active && !paused) { tick(); timer = setInterval(tick, REFRESH_MS); }
+  }
+  $("#dash-pause").onclick = () => {
+    paused = !paused;
+    $("#dash-pause").setAttribute("aria-pressed", String(paused));
+    $("#dash-pause").textContent = paused ? "Resume auto-refresh" : "Pause auto-refresh";
+    schedule();
+  };
+  return { setActive(on) { if (on !== active) { active = on; schedule(); } } };
+}
+const dashboard = createDashboard();

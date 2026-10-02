@@ -20,4 +20,10 @@ export const STORIES = [
   { id: "US-07", title: "Transparent breakdown",
     story: "As a quality analyst I want to see how the mod was derived so I can verify it independently.",
     ac: ["Shows E, PT, Ep, Ee, Ap, loss-free mod", "Lists each claim's Actual Losses, Actual Primary and the rule applied"] },
+  { id: "US-08", title: "Quality dashboard",
+    story: "As a QE lead I want live service stats and the latest automated test results in the app so I can judge release health at a glance.",
+    ac: ["Shows requests served, calculations by outcome, approximate p95 latency, mod distribution and uptime from the app's metrics",
+      "Refreshes every 5 seconds with a visible last-updated time; auto-refresh can be paused and resumed",
+      "Shows Playwright pass/fail counts per project and the failed tests, or a clear empty state when no results exist",
+      "Links to Grafana (default http://localhost:3001, configurable)"] },
 ];

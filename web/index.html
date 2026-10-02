@@ -42,6 +42,19 @@
   .story { border-left:3px solid var(--acc); padding:4px 12px; margin:10px 0; } .story h3{margin:0; font-size:14px;} .story p{margin:2px 0; color:var(--mute); font-size:13px;}
   code { background:var(--bg); padding:1px 5px; border-radius:4px; font-size:12px; }
   .note { color:var(--mute); font-size:12px; }
+  .card-gap { margin-top:16px; }
+  .dash-head { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; margin-bottom:12px; }
+  .dash-head h2 { margin:0; flex:1 1 auto; }
+  .dash-status { font-size:12px; color:var(--bad); }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:14px; }
+  .kpi { border:1px solid var(--line); border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:2px; }
+  .kpi-label { font-size:12px; color:var(--mute); }
+  .kpi-value { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+  h3.sub { font-size:14px; margin:6px 0 6px; }
+  .bar { height:10px; background:var(--acc); border-radius:3px; min-width:1px; }
+  .bar-cell { width:45%; }
+  .fail-list { margin:8px 0 0; padding-left:18px; font-size:13px; }
+  .fail-list li { margin-bottom:6px; } .fail-list code { white-space:pre-wrap; word-break:break-word; }
 </style>
 </head>
 <body>
@@ -52,7 +65,7 @@
 <nav role="tablist" aria-label="Sections">
   <button role="tab" id="tab-calc" aria-selected="true" aria-controls="panel-calc" data-testid="tab-calc">Calculator</button>
   <button role="tab" id="tab-stories" aria-selected="false" aria-controls="panel-stories" data-testid="tab-stories">User stories &amp; criteria</button>
-  <button role="tab" id="tab-dash" aria-selected="false" aria-controls="panel-dash" data-testid="tab-dash" disabled title="Coming next: Prometheus + Grafana">Quality dashboard (soon)</button>
+  <button role="tab" id="tab-dash" aria-selected="false" aria-controls="panel-dash" data-testid="tab-dash">Quality dashboard</button>
 </nav>
 <main>
 <section id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
@@ -101,7 +114,30 @@
 </section>
 
 <section id="panel-dash" role="tabpanel" aria-labelledby="tab-dash" hidden>
-  <div class="card"><h2>Quality dashboard</h2><p class="note">Planned: Prometheus + Grafana panels fed by <code>/metrics</code>.</p></div>
+  <div class="card" data-testid="dash-stats">
+    <div class="dash-head">
+      <h2>Live service stats</h2>
+      <span class="note">Last updated: <time id="dash-updated" data-testid="dash-updated">never</time></span>
+      <span class="dash-status" id="dash-status" data-testid="dash-status" role="status"></span>
+      <button class="btn" id="dash-pause" data-testid="dash-pause" type="button" aria-pressed="false">Pause auto-refresh</button>
+      <a id="grafana-link" data-testid="grafana-link" href="http://localhost:3001" target="_blank" rel="noopener noreferrer">Open Grafana ↗</a>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Requests served</span><span class="kpi-value" id="dash-total-requests" data-testid="dash-total-requests">–</span></div>
+      <div class="kpi"><span class="kpi-label">Calculations OK</span><span class="kpi-value ok" id="dash-calc-ok" data-testid="dash-calc-ok">–</span></div>
+      <div class="kpi"><span class="kpi-label">Rejected (invalid input)</span><span class="kpi-value warn" id="dash-calc-invalid" data-testid="dash-calc-invalid">–</span></div>
+      <div class="kpi"><span class="kpi-label">Server errors</span><span class="kpi-value bad" id="dash-calc-error" data-testid="dash-calc-error">–</span></div>
+      <div class="kpi"><span class="kpi-label">p95 latency (approx.)</span><span class="kpi-value" id="dash-p95" data-testid="dash-p95">–</span></div>
+      <div class="kpi"><span class="kpi-label">Uptime</span><span class="kpi-value" id="dash-uptime" data-testid="dash-uptime">–</span></div>
+    </div>
+    <h3 class="sub">Calculated mods since start <span class="note" id="dash-mod-mean" data-testid="dash-mod-mean"></span></h3>
+    <table data-testid="dash-mod-dist"><thead><tr><th scope="col">Mod range</th><th scope="col" class="n">Count</th><th scope="col">Share</th></tr></thead><tbody id="dash-mod-rows"></tbody></table>
+    <p class="note">Numbers come from the app's own Prometheus metrics (<code>GET /api/stats</code>, built from <code>/metrics</code>) and cover the life of this server process. Dashboard polling is excluded from the counts. Percentiles are interpolated from histogram buckets, so they are estimates. For history and alerting, use Grafana (<code>docker compose up</code>).</p>
+  </div>
+  <div class="card card-gap" data-testid="test-results">
+    <h2>Test results</h2>
+    <div id="test-results-body"><p class="note">Loading…</p></div>
+  </div>
 </section>
 </main>
 <script src="app.js" type="module"></script>

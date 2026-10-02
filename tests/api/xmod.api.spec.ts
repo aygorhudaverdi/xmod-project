@@ -145,3 +145,33 @@ test.describe("observability", () => {
     expect(text).toMatch(/method="POST",route="\/api\/xmod\/calculate",status="400"/);
   });
 });
+
+test.describe("US-08 dashboard feeds", () => {
+  test("US-08 GET /api/stats returns live counters that move after a calculation", async ({ request }) => {
+    const before = await (await request.get("/api/stats")).json();
+    await calc(request, risk());
+    const r = await request.get("/api/stats");
+    expect(r.headers()["cache-control"]).toBe("no-store");
+    const after = await r.json();
+    expect(after.calculations.ok).toBeGreaterThan(before.calculations.ok);
+    expect(after.totalRequests).toBeGreaterThan(before.totalRequests);
+    expect(after.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    expect(after.latency.p95Ms).toEqual(expect.any(Number));
+    expect(after.mods.count).toBeGreaterThan(0);
+    expect(after.links.grafana).toMatch(/^https?:\/\//);
+  });
+  test("US-08 polling the dashboard feeds does not inflate the request count", async ({ request }) => {
+    const a = (await (await request.get("/api/stats")).json()).requestsByRoute;
+    await request.get("/api/stats");
+    await request.get("/api/test-results");
+    await request.get("/metrics");
+    const b = (await (await request.get("/api/stats")).json()).requestsByRoute;
+    for (const route of ["/api/stats", "/api/test-results", "/metrics"]) expect(b[route]).toBeUndefined();
+    expect(a).toBeDefined();
+  });
+  test("US-08 GET /api/test-results returns an empty state when the results file is absent", async ({ request }) => {
+    const r = await request.get("/api/test-results");
+    expect(r.status()).toBe(200);
+    expect(await r.json()).toEqual({ available: false, message: expect.stringContaining("No Playwright results") });
+  });
+});

@@ -16,7 +16,8 @@ export default defineConfig({
   // PORT goes through `env`, not `PORT=... cmd`, so the command also works in Windows cmd.exe (DEF-002).
   webServer: {
     command: "npx tsx src/server/server.ts",
-    env: { PORT: String(PORT) },
+    // TEST_RESULTS_PATH points at a file that never exists, so the dashboard's empty state is deterministic.
+    env: { PORT: String(PORT), TEST_RESULTS_PATH: "tests/fixtures/never-written-results.json" },
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
   },

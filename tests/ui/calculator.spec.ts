@@ -16,10 +16,11 @@ const addClaim = async (page: Page, o: { id?: string; indemnity: string; medical
 
 test.beforeEach(async ({ page }) => { await page.goto("/"); });
 
-test("page loads with calculator, stories tab and disabled dashboard tab", async ({ page }) => {
+test("page loads with calculator selected and the stories and dashboard tabs available", async ({ page }) => {
   await expect(page).toHaveTitle("X-Mod Lab");
   await expect(page.getByTestId("tab-calc")).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByTestId("tab-dash")).toBeDisabled();
+  await expect(page.getByTestId("tab-stories")).toBeEnabled();
+  await expect(page.getByTestId("tab-dash")).toBeEnabled();
 });
 
 test("US-01 calculates the reference risk", async ({ page }) => {
@@ -102,7 +103,7 @@ test("add and remove rows; reset clears results", async ({ page }) => {
 
 test("stories tab lists every story with acceptance criteria", async ({ page }) => {
   await page.getByTestId("tab-stories").click();
-  for (const id of ["US-01", "US-02", "US-03", "US-04", "US-05", "US-06", "US-07"]) {
+  for (const id of ["US-01", "US-02", "US-03", "US-04", "US-05", "US-06", "US-07", "US-08"]) {
     await expect(page.getByTestId(`story-${id}`)).toBeVisible();
   }
   await expect(page.locator("#panel-calc")).toBeHidden();

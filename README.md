@@ -26,6 +26,21 @@ Chromium binary instead.
 Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · `web` (UI) ·
 `tests/{unit,api,ui}` · `data` (tables parsed from the Plan PDF by `tools/extract_tables.py`).
 
+## In-app quality dashboard
+
+The **Quality dashboard** tab shows two panels:
+
+- **Live service stats** from `GET /api/stats`, a JSON view of the app's own Prometheus registry: requests served,
+  calculations by outcome, approximate p95, mod distribution and uptime. It refreshes every 5 s, shows a
+  last-updated time and has a pause toggle. Its own polling (`/api/stats`, `/api/test-results`, `/metrics`) is
+  left out of the counts.
+- **Test results** from `GET /api/test-results`, a summary of `test-results/results.json` written by Playwright's JSON
+  reporter: pass/fail/flaky/skipped per project and the failed tests with their first error line. Run
+  `npx playwright test`, then `npm start`, to see it. Without a results file the panel shows an empty state.
+
+The Grafana link defaults to `http://localhost:3001`. Override it on the server with `GRAFANA_URL`, or per browser
+with `?grafana=https://your-grafana`, which is remembered.
+
 ## Continuous integration
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request:
