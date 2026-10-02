@@ -17,7 +17,9 @@ export default defineConfig({
   webServer: {
     command: "npx tsx src/server/server.ts",
     // TEST_RESULTS_PATH points at a file that never exists, so the dashboard's empty state is deterministic.
-    env: { PORT: String(PORT), TEST_RESULTS_PATH: "tests/fixtures/never-written-results.json" },
+    // All tests share one client IP, so the shared server's rate limit is raised; the 429 behavior is tested
+    // against its own in-process app with a tiny limit (tests/api/security.spec.ts).
+    env: { PORT: String(PORT), TEST_RESULTS_PATH: "tests/fixtures/never-written-results.json", RATE_LIMIT_MAX: "1000000" },
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
   },

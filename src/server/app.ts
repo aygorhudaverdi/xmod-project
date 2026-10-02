@@ -1,4 +1,6 @@
 import express from "express";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import client from "prom-client";
 import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
@@ -21,8 +23,39 @@ function routeLabel(req: express.Request, res: express.Response): string {
   return res.statusCode === 404 ? "unmatched" : "static";
 }
 
-export function createApp() {
+export interface AppOptions {
+  /** Requests per window per client on POST /api/xmod/calculate. Defaults: RATE_LIMIT_MAX / RATE_LIMIT_WINDOW_MS env, else 120 per minute. */
+  rateLimit?: { limit: number; windowMs: number };
+}
+
+const apiError = (res: express.Response, status: number, code: string, message: string) =>
+  res.status(status).json({ error: { code, message } });
+
+export function createApp(options: AppOptions = {}) {
   const app = express();
+  app.disable("x-powered-by");
+  // Behind a reverse proxy (Render), set TRUST_PROXY=1 so rate limiting sees the client IP, not the proxy's.
+  app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 0));
+
+  // ---- Security headers. The UI uses only same-origin scripts and styles, so the CSP needs no 'unsafe-inline'.
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        // No upgrade-insecure-requests: the app is also served over plain http (localhost, docker compose).
+      },
+    },
+  }));
 
   // ---- Prometheus metrics (scraped later by Prometheus -> Grafana)
   const registry = new client.Registry();
@@ -59,10 +92,24 @@ export function createApp() {
   });
   app.get("/api/classes/:code", (req, res) => {
     const info = classInfo(req.params.code);
-    info ? res.json(info) : res.status(404).json({ error: { code: "UNKNOWN_CLASS", message: `Unknown class code ${req.params.code}` } });
+    info ? res.json(info) : apiError(res, 404, "UNKNOWN_CLASS", `Unknown class code ${req.params.code}`);
   });
 
-  app.post("/api/xmod/calculate", (req, res) => {
+  const limits = options.rateLimit ?? {
+    limit: Number(process.env.RATE_LIMIT_MAX ?? 120),
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000),
+  };
+  const calculateLimiter = rateLimit({
+    ...limits,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (_req, res, _next, opts) => {
+      res.set("Retry-After", String(Math.ceil(opts.windowMs / 1000)));
+      apiError(res, 429, "RATE_LIMITED", `Too many calculation requests; limit is ${opts.limit} per ${opts.windowMs / 1000}s`);
+    },
+  });
+
+  app.post("/api/xmod/calculate", calculateLimiter, (req, res) => {
     try {
       const result = calculateMod(req.body as RatingInput);
       calcTotal.inc({ outcome: "ok" });
@@ -71,14 +118,14 @@ export function createApp() {
     } catch (e) {
       if (e instanceof ValidationError) {
         calcTotal.inc({ outcome: "validation_error" });
-        return res.status(422).json({ error: { code: e.code, message: e.message } });
+        return apiError(res, 422, e.code, e.message);
       }
       if (e instanceof TypeError) {
         calcTotal.inc({ outcome: "validation_error" });
-        return res.status(400).json({ error: { code: "MALFORMED_REQUEST", message: "Request body is not a valid rating input" } });
+        return apiError(res, 400, "MALFORMED_REQUEST", "Request body is not a valid rating input");
       }
       calcTotal.inc({ outcome: "server_error" });
-      res.status(500).json({ error: { code: "INTERNAL", message: "Unexpected error" } });
+      apiError(res, 500, "INTERNAL", "Unexpected error");
     }
   });
 
@@ -114,14 +161,20 @@ export function createApp() {
     }
   });
 
+  // Anything else under /api is a JSON 404, never the HTML "Cannot GET" page (DEF-005).
+  app.use("/api", (req, res) => apiError(res, 404, "NOT_FOUND", `No API route for ${req.method} ${req.originalUrl.split("?")[0]}`));
+
   app.use(express.static(fileURLToPath(new URL("../../web", import.meta.url))));
-  // JSON error contract for body-parser failures (malformed JSON, oversize payload)
-  app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (err?.type === "entity.parse.failed")
-      return res.status(400).json({ error: { code: "MALFORMED_JSON", message: "Request body is not valid JSON" } });
-    if (err?.type === "entity.too.large")
-      return res.status(413).json({ error: { code: "PAYLOAD_TOO_LARGE", message: "Request body too large" } });
-    next(err);
+
+  // JSON error contract for every error, so no request can reach Express's HTML handler and its stack trace
+  // (DEF-001: body-parser errors; DEF-005: undecodable URL params and any other thrown error).
+  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    if (err?.type === "entity.parse.failed") return apiError(res, 400, "MALFORMED_JSON", "Request body is not valid JSON");
+    if (err?.type === "entity.too.large") return apiError(res, 413, "PAYLOAD_TOO_LARGE", "Request body too large");
+    const status = Number(err?.status ?? err?.statusCode);
+    if (status >= 400 && status < 500) return apiError(res, status, "BAD_REQUEST", "The request could not be processed");
+    console.error(`[${req.method} ${req.originalUrl}]`, err);
+    apiError(res, 500, "INTERNAL", "Unexpected error");
   });
   return app;
 }

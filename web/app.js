@@ -5,10 +5,26 @@ const money = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 
 
 // ---- tabs
 const tabs = [["calc", "panel-calc"], ["stories", "panel-stories"], ["dash", "panel-dash"]];
-for (const [k, panel] of tabs) {
-  $(`#tab-${k}`).addEventListener("click", () => {
-    for (const [k2, p2] of tabs) { $(`#tab-${k2}`).setAttribute("aria-selected", String(k2 === k)); $(`#${p2}`).hidden = p2 !== panel; }
-    dashboard.setActive(k === "dash");
+function selectTab(k) {
+  for (const [k2, p2] of tabs) {
+    const t = $(`#tab-${k2}`);
+    t.setAttribute("aria-selected", String(k2 === k));
+    t.tabIndex = k2 === k ? 0 : -1; // roving tabindex: Tab moves into the panel, arrows move between tabs
+    $(`#${p2}`).hidden = k2 !== k;
+  }
+  dashboard.setActive(k === "dash");
+}
+for (const [k] of tabs) {
+  $(`#tab-${k}`).addEventListener("click", () => selectTab(k));
+  // WAI-ARIA tabs pattern: Left/Right wrap around, Home/End jump; selection follows focus.
+  $(`#tab-${k}`).addEventListener("keydown", (e) => {
+    const i = tabs.findIndex(([k2]) => k2 === k);
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const [nk] = tabs[(next + tabs.length) % tabs.length];
+    selectTab(nk);
+    $(`#tab-${nk}`).focus();
   });
 }
 
@@ -24,24 +40,27 @@ fetch("/api/classes").then((r) => r.json()).then((list) => {
 
 // ---- rows
 let seq = 0;
+let uid = 0; // unique per row, so every <label for> points at exactly one control (axe "label" rule)
 function addPayroll(code = "", payroll = "") {
+  const u = `p${++uid}`;
   const d = document.createElement("div");
   d.className = "row payroll"; d.dataset.testid = "payroll-row";
-  d.innerHTML = `<div><label>Class code</label><input list="class-list" data-field="classCode" data-testid="class-code" inputmode="numeric" maxlength="4" value="${esc(code)}"></div>
-    <div><label>Payroll ($) / units</label><input data-field="payroll" data-testid="payroll" inputmode="decimal" value="${esc(payroll)}"></div>
+  d.innerHTML = `<div><label for="${u}-code">Class code</label><input id="${u}-code" list="class-list" data-field="classCode" data-testid="class-code" inputmode="numeric" maxlength="4" value="${esc(code)}"></div>
+    <div><label for="${u}-pay">Payroll ($) / units</label><input id="${u}-pay" data-field="payroll" data-testid="payroll" inputmode="decimal" value="${esc(payroll)}"></div>
     <button class="btn x" type="button" aria-label="Remove class" data-testid="remove-payroll">✕</button>`;
   $(".x", d).onclick = () => d.remove();
   $("#payroll-rows").append(d);
 }
 function addClaim(c = {}) {
   seq++;
+  const u = `c${++uid}`;
   const d = document.createElement("div");
   d.className = "row claim"; d.dataset.testid = "claim-row";
   d.innerHTML = `
-    <div><label>Claim id</label><input data-field="id" data-testid="claim-id" value="${esc(c.id ?? "C" + seq)}"></div>
-    <div><label>Indemnity ($)</label><input data-field="indemnity" data-testid="indemnity" inputmode="decimal" value="${esc(c.indemnity ?? "")}"></div>
-    <div><label>Medical ($)</label><input data-field="medical" data-testid="medical" inputmode="decimal" value="${esc(c.medical ?? "")}"></div>
-    <div><label>Treatment</label><select data-field="treatment" data-testid="treatment">
+    <div><label for="${u}-id">Claim id</label><input id="${u}-id" data-field="id" data-testid="claim-id" maxlength="100" value="${esc(c.id ?? "C" + seq)}"></div>
+    <div><label for="${u}-ind">Indemnity ($)</label><input id="${u}-ind" data-field="indemnity" data-testid="indemnity" inputmode="decimal" value="${esc(c.indemnity ?? "")}"></div>
+    <div><label for="${u}-med">Medical ($)</label><input id="${u}-med" data-field="medical" data-testid="medical" inputmode="decimal" value="${esc(c.medical ?? "")}"></div>
+    <div><label for="${u}-tr">Treatment</label><select id="${u}-tr" data-field="treatment" data-testid="treatment">
       ${["none", "subrogation", "fraud", "compromise", "joint"].map((t) => `<option ${c.treatment === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
     <button class="btn x" type="button" aria-label="Remove claim" data-testid="remove-claim">✕</button>
     <div class="opts">
@@ -49,7 +68,7 @@ function addClaim(c = {}) {
       <label><input type="checkbox" data-field="death" data-testid="death" ${c.death ? "checked" : ""}> Death</label>
       <label><input type="checkbox" data-field="nonCompensable" data-testid="non-compensable" ${c.nonCompensable ? "checked" : ""}> Non-compensable</label>
       <label><input type="checkbox" data-field="elAndWc" data-testid="el-wc" ${c.elAndWc ? "checked" : ""}> EL + WC</label>
-      <label>Accident id <input data-field="accidentId" data-testid="accident-id" style="width:90px" value="${esc(c.accidentId ?? "")}"></label>
+      <label>Accident id <input data-field="accidentId" data-testid="accident-id" class="accident" value="${esc(c.accidentId ?? "")}"></label>
     </div>`;
   $(".x", d).onclick = () => d.remove();
   $("#claim-rows").append(d);
@@ -126,7 +145,7 @@ function render(box, r) {
     <h2>Classes</h2>
     <table data-testid="class-table"><thead><tr><th>Class</th><th class="n">ELR</th><th class="n">Expected</th><th class="n">D-ratio</th><th class="n">Exp. primary</th></tr></thead><tbody>
     ${r.classes.map((c) => `<tr><td>${c.classCode}</td><td class="n">${c.elr}</td><td class="n">${money(c.expectedLosses)}</td><td class="n">${c.dRatio}</td><td class="n">${money(c.expectedPrimary)}</td></tr>`).join("")}</tbody></table>
-    ${r.claims.length ? `<h2 style="margin-top:14px">Claims</h2>
+    ${r.claims.length ? `<h2 class="spaced">Claims</h2>
     <table data-testid="claim-table"><thead><tr><th>Claim</th><th class="n">Actual losses</th><th class="n">Actual primary</th><th>Rule</th></tr></thead><tbody>
     ${r.claims.map((c) => `<tr data-testid="claim-result"><td>${esc(c.id)}</td><td class="n">${money(c.actualLosses)}</td><td class="n">${money(c.actualPrimary)}</td><td>${esc(c.rule)}</td></tr>`).join("")}</tbody></table>` : ""}
     <p class="note">Mod rounding (2 decimals, half-up) is an assumption; the Plan text read so far does not state it.</p>`;

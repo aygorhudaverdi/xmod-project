@@ -93,6 +93,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Start the app
+        env:
+          RATE_LIMIT_MAX: "1000000" # k6 sends ~330 calculations/min from one IP
         run: |
           npm start > server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://localhost:3000/api/health && exit 0; sleep 1; done

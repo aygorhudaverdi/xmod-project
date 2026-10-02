@@ -185,6 +185,9 @@ describe("input validation", () => {
   it("rejects negative losses", () => expect(bad(base([claim("a", -5)]))).toBe("BAD_LOSS"));
   it("rejects duplicate claim ids", () => expect(bad(base([claim("a", 1), claim("a", 2)]))).toBe("DUPLICATE_CLAIM"));
   it("rejects net > gross", () => expect(bad(base([claim("a", 100, { treatment: "joint", netIncurred: 200 })]))).toBe("BAD_NET"));
+  it.each([[""], ["   "], ["x".repeat(101)], [42], [{ x: 1 }], [undefined]])("rejects claim id %j (DEF-006)", (id) =>
+    expect(bad(base([{ id, indemnity: 1, medical: 0 } as unknown as ClaimInput]))).toBe("BAD_CLAIM_ID"));
+  it("accepts a 100-character claim id", () => expect(calculateMod(base([claim("x".repeat(100), 1)])).claims).toHaveLength(1));
   it("requires net for subrogation", () => expect(bad(base([claim("a", 100, { treatment: "subrogation" })]))).toBe("BAD_NET"));
 });
 

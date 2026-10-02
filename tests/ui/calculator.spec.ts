@@ -109,6 +109,25 @@ test("stories tab lists every story with acceptance criteria", async ({ page }) 
   await expect(page.locator("#panel-calc")).toBeHidden();
 });
 
+test("tabs follow the WAI-ARIA keyboard pattern: arrows, Home/End, roving tabindex", async ({ page }) => {
+  await page.getByTestId("tab-calc").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByTestId("tab-stories")).toBeFocused();
+  await expect(page.getByTestId("tab-stories")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("tab-stories")).toHaveAttribute("tabindex", "0");
+  await expect(page.getByTestId("tab-calc")).toHaveAttribute("tabindex", "-1");
+  await page.keyboard.press("End");
+  await expect(page.getByTestId("tab-dash")).toBeFocused();
+  await expect(page.getByTestId("dash-stats")).toBeVisible();
+  await page.keyboard.press("ArrowRight"); // wraps around
+  await expect(page.getByTestId("tab-calc")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByTestId("tab-dash")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Home");
+  await expect(page.getByTestId("tab-calc")).toBeFocused();
+  await expect(page.locator("#panel-calc")).toBeVisible();
+});
+
 test("tabs are keyboard operable and expose ARIA state", async ({ page }) => {
   await page.getByTestId("tab-stories").focus();
   await page.keyboard.press("Enter");

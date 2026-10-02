@@ -95,6 +95,19 @@ The app's metrics come from [`src/server/app.ts`](src/server/app.ts): `xmod_http
 (the `route` label is the matched route pattern, `unmatched` or `static`, so cardinality stays bounded),
 `xmod_calculations_total{outcome}`, `xmod_mod_value`, plus prom-client's default process metrics.
 
+## Security and accessibility
+
+- helmet security headers with a strict CSP (`script-src 'self'; style-src 'self'`, no `unsafe-inline`).
+- `POST /api/xmod/calculate` is rate limited per client IP: `RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW_MS`, default
+  120 per minute. Over the limit it returns 429 `RATE_LIMITED` in the standard error shape. Raise the limit for load
+  tests: docker compose and CI already do. Behind a proxy, set `TRUST_PROXY=1`.
+- Every error, including unknown `/api/*` routes and undecodable URLs, is JSON. No HTML error pages or stack traces
+  are returned.
+- axe-core checks every tab in light and dark mode (WCAG 2.1 AA plus best practices, zero violations allowed), and the
+  tabs follow the WAI-ARIA keyboard pattern.
+
+Details, findings and known gaps: [docs/SECURITY_AND_A11Y.md](docs/SECURITY_AND_A11Y.md).
+
 ## Deploy
 
 The server runs the TypeScript sources through `tsx`, which is a runtime dependency. There is no build step, so

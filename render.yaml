@@ -11,3 +11,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # One proxy hop in front of the app: rate limiting keys on the real client IP.
+      - key: TRUST_PROXY
+        value: "1"

@@ -10,6 +10,8 @@ services:
       - "3000:3000"
     environment:
       PORT: "3000"
+      # Local stack is used for load tests from one IP (k6); the default 120/min would answer them with 429.
+      RATE_LIMIT_MAX: "1000000"
 
   prometheus:
     image: prom/prometheus:v3.15.0

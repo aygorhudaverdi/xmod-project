@@ -1,5 +1,6 @@
 // Smoke: 1 VU for 30s across every endpoint. Proves the scripts and the deployment work; not a load test.
 //   k6 run perf/smoke.js                       (BASE_URL defaults to http://localhost:3000)
+// Needs the target started with RATE_LIMIT_MAX raised (e.g. 1000000): smoke sends ~330 calculations/min.
 import { group, sleep } from "k6";
 import { calculate, get, CORE_THRESHOLDS, summaryWriter, PAYLOADS } from "./lib.js";
 

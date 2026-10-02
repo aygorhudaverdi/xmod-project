@@ -160,6 +160,9 @@ function validate(input: RatingInput) {
   }
   const ids = new Set<string>();
   for (const c of input.claims ?? []) {
+    // DEF-006: ids are echoed back in the breakdown, so they must be plain text of bounded length.
+    if (typeof c.id !== "string" || c.id.trim() === "" || c.id.length > 100)
+      throw new ValidationError("BAD_CLAIM_ID", "Each claim needs an id: non-empty text of at most 100 characters");
     if (ids.has(c.id)) throw new ValidationError("DUPLICATE_CLAIM", `Duplicate claim id ${c.id}`);
     ids.add(c.id);
     for (const v of [c.indemnity, c.medical]) {

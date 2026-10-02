@@ -2,6 +2,7 @@
 //   k6 run perf/stress.js                    (override the ceiling with -e MAX_RPS=3000)
 // Open model (arrival rate, not VUs): if the server slows down, requests still arrive on schedule
 // and queueing becomes visible as latency and dropped_iterations rather than being hidden.
+// Start the target with RATE_LIMIT_MAX=1000000 (see load.js).
 import { calculate, pickPayload, summaryWriter } from "./lib.js";
 
 const MAX_RPS = Number(__ENV.MAX_RPS || 1600);

@@ -4,7 +4,7 @@ Targets and their rationale are in [PERFORMANCE_REQUIREMENTS.md](PERFORMANCE_REQ
 project's own NFRs, not WCIRB's.
 
 ```
-npm start                       # or: docker compose up -d app
+RATE_LIMIT_MAX=1000000 npm start   # or: docker compose up -d app (already raised there)
 k6 run perf/smoke.js            # 30 s, gate for every CI run
 k6 run perf/load.js             # ~5.5 min
 k6 run perf/stress.js           # up to ~7 min, -e MAX_RPS=3000 to push further

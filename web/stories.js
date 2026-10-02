@@ -16,7 +16,7 @@ export const STORIES = [
     ac: ["Eligible when expected losses ≥ $10,800 (Sept 2025 Plan)", "Below the threshold, eligible only if rated the prior year and the mod exceeds 1.00"] },
   { id: "US-06", title: "Input validation and clear errors",
     story: "As a user I want invalid input rejected with a specific message and no result shown.",
-    ac: ["Unknown class code → 422 UNKNOWN_CLASS", "Negative payroll or loss → rejected", "Net incurred must not exceed gross incurred", "Duplicate claim ids rejected"] },
+    ac: ["Unknown class code → 422 UNKNOWN_CLASS", "Negative payroll or loss → rejected", "Net incurred must not exceed gross incurred", "Duplicate claim ids rejected", "Claim ids must be non-empty text of at most 100 characters"] },
   { id: "US-07", title: "Transparent breakdown",
     story: "As a quality analyst I want to see how the mod was derived so I can verify it independently.",
     ac: ["Shows E, PT, Ep, Ee, Ap, loss-free mod", "Lists each claim's Actual Losses, Actual Primary and the rule applied"] },

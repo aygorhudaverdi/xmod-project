@@ -1,5 +1,7 @@
 // Load: ramp to 50 VUs over 2 min, hold 3 min, ramp down. A realistic mix of rating requests, ~5% invalid.
 //   k6 run perf/load.js
+// POST /api/xmod/calculate is rate limited per client IP (default 120/min). Start the target with
+// RATE_LIMIT_MAX=1000000 (docker compose and CI already do), or the 429s will fail this test.
 import { sleep } from "k6";
 import { calculate, get, pickPayload, CORE_THRESHOLDS, summaryWriter } from "./lib.js";
 
