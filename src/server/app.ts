@@ -1,6 +1,7 @@
 import express from "express";
 import client from "prom-client";
 import { fileURLToPath } from "node:url";
+import pkg from "../../package.json" with { type: "json" };
 import { calculateMod, classCodes, classInfo, planInfo, ValidationError, type RatingInput } from "../engine/xmod.js";
 
 export function createApp() {
@@ -29,7 +30,7 @@ export function createApp() {
     next();
   });
 
-  app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/api/health", (_req, res) => res.json({ status: "ok", version: pkg.version }));
   app.get("/api/plan", (_req, res) => res.json(planInfo()));
   app.get("/api/classes", (req, res) => {
     const q = String(req.query.q ?? "");

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import pkg from "../../package.json" with { type: "json" };
 
 const risk = (claims: unknown[] = [], extra = {}) => ({
   payroll: [{ classCode: "0005", payroll: 1_000_000 }], claims, ...extra,
@@ -6,10 +7,10 @@ const risk = (claims: unknown[] = [], extra = {}) => ({
 const calc = (request: any, data: unknown) => request.post("/api/xmod/calculate", { data });
 
 test.describe("health, plan and reference data", () => {
-  test("GET /api/health", async ({ request }) => {
+  test("GET /api/health reports status and the package version", async ({ request }) => {
     const r = await request.get("/api/health");
     expect(r.ok()).toBeTruthy();
-    expect(await r.json()).toEqual({ status: "ok" });
+    expect(await r.json()).toEqual({ status: "ok", version: pkg.version });
   });
   test("GET /api/plan exposes the plan constants", async ({ request }) => {
     const p = await (await request.get("/api/plan")).json();

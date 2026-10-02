@@ -40,6 +40,25 @@ Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · 
 The Pages job needs a one-time repository setting: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 After that, the latest report is at <https://aygorhudaverdi.github.io/xmod-project/>.
 
+## Deploy
+
+The server runs the TypeScript sources through `tsx`, which is a runtime dependency. There is no build step, so
+`npm start`, the Docker image and Render all run the same code.
+
+**Docker** (multi-stage `node:20-slim`, runs as the unprivileged `node` user, `HEALTHCHECK` on `/api/health`):
+
+```
+docker build -t xmod-lab .
+docker run --rm -p 3000:3000 xmod-lab              # http://localhost:3000
+docker run --rm -e PORT=8080 -p 8080:8080 xmod-lab # any PORT works
+```
+
+**Render** (free web service): [`render.yaml`](render.yaml) is a Blueprint. In the Render dashboard choose
+*New → Blueprint*, select this repository, and Render builds the Dockerfile and health-checks `/api/health`.
+Free instances sleep when idle, so the first request after a pause is slow. Don't treat that as a performance result.
+
+`GET /api/health` returns `{ "status": "ok", "version": "<package.json version>" }`, so you can see which build is live.
+
 ## Assumptions the Plan text does not settle (all in `RatingPolicy`, covered by tests)
 1. Published mod = 2-decimal factor, round-half-up (rounding rule not found in the pages read).
 2. Expected losses are rounded to whole dollars before the Table II band lookup.
