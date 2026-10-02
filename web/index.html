@@ -18,39 +18,54 @@
 </div></nav>
 <main>
 <section id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
-  <div class="grid">
-    <div>
-      <div class="card card-gap-b">
-        <h2>Payroll by class</h2>
-        <div id="payroll-rows"></div>
-        <button class="btn" id="add-payroll" data-testid="add-payroll" type="button">+ Add class</button>
-        <datalist id="class-list"></datalist>
-        <p class="note">Class codes from Table I (e.g. 0005, 3634). Per-capita classes (7707, 7722, 8278, 8631) take units, not dollars.</p>
-      </div>
-      <div class="card">
-        <h2>Claims</h2>
-        <div id="claim-rows"></div>
-        <button class="btn" id="add-claim" data-testid="add-claim" type="button">+ Add claim</button>
-      </div>
-      <div class="card card-gap">
-        <h2>Risk status</h2>
-        <div class="risk-opts">
-          <label><input type="checkbox" id="prior-rated" data-testid="prior-rated"> Experience rated prior year</label>
-          <label><input type="checkbox" id="excl-unaudited" data-testid="excl-unaudited"> Mod excludes unaudited payroll</label>
-        </div>
-        <div class="actions">
-          <button class="btn primary" id="calculate" data-testid="calculate" type="button">Calculate X-Mod</button>
-          <button class="btn" id="load-sample" data-testid="load-sample" type="button">Load sample risk</button>
-          <button class="btn" id="reset" data-testid="reset" type="button">Reset</button>
-        </div>
-      </div>
+  <div class="card" data-testid="heading-card">
+    <h2>Heading <span class="note">(optional, for display only)</span></h2>
+    <div class="fields4">
+      <div><label for="employer">Employer name</label><input id="employer" data-testid="employer" autocomplete="organization"></div>
+      <div><label for="policy-number">Policy number</label><input id="policy-number" data-testid="policy-number"></div>
+      <div><label for="effective-date">Effective date</label><input id="effective-date" data-testid="effective-date" type="date"></div>
+      <div><label for="issue-date">Issue date</label><input id="issue-date" data-testid="issue-date" type="date"></div>
     </div>
-    <div>
-      <div class="card" id="result" aria-live="polite" data-testid="result">
-        <h2>Result</h2>
-        <p class="note" id="placeholder">Enter payroll and claims, then calculate.</p>
-      </div>
+  </div>
+
+  <div class="card card-gap">
+    <h2>Payroll by class</h2>
+    <table class="entry" data-testid="payroll-entry">
+      <thead><tr><th scope="col">Policy year <span class="note">(optional)</span></th><th scope="col">Class code</th><th scope="col">Payroll / units</th><th scope="col">Expected loss rate</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+      <tbody id="payroll-rows"></tbody>
+    </table>
+    <button class="btn" id="add-payroll" data-testid="add-payroll" type="button">+ Add class</button>
+    <datalist id="class-list"></datalist>
+    <p class="note">Class codes from Table I. Per-capita classes (7707, 7722, 8278, 8631) are entered in units, not dollars; the label switches when you enter one. Policy year is a display label only: the engine does not group by policy yet.</p>
+  </div>
+
+  <div class="card card-gap">
+    <h2>Claims</h2>
+    <table class="entry" id="claim-rows" data-testid="claims-entry">
+      <thead><tr><th scope="col">Claim number</th><th scope="col">Injury type</th><th scope="col">Open/Closed</th><th scope="col">Incurred loss ($)</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+    </table>
+    <button class="btn" id="add-claim" data-testid="add-claim" type="button">+ Add claim</button>
+    <p class="note">Incurred loss is indemnity plus medical. Open/Closed is shown on the worksheet only and does not change the calculation. Rare cases (subrogation, fraud, joint coverage, non-compensable, EL + WC, multi-person accidents) are under each claim's <b>Special handling</b>.</p>
+  </div>
+
+  <div class="card card-gap">
+    <h2>Rating options</h2>
+    <div class="risk-opts">
+      <label><input type="checkbox" id="prior-rated" data-testid="prior-rated"> Experience rated prior year</label>
+      <label><input type="checkbox" id="excl-unaudited" data-testid="excl-unaudited"> Mod excludes unaudited payroll</label>
     </div>
+    <div class="actions">
+      <button class="btn primary" id="calculate" data-testid="calculate" type="button">Calculate X-Mod</button>
+      <label class="inline" for="sample-select">Sample risk</label>
+      <select id="sample-select" data-testid="sample-select" class="auto"></select>
+      <button class="btn" id="load-sample" data-testid="load-sample" type="button">Load sample risk</button>
+      <button class="btn" id="reset" data-testid="reset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <div class="card card-gap" id="result" aria-live="polite" data-testid="result">
+    <h2>Experience rating worksheet</h2>
+    <p class="note" id="placeholder">Enter payroll and claims, then calculate.</p>
   </div>
 </section>
 

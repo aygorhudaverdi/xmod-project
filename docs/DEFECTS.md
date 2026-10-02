@@ -187,6 +187,28 @@ function shadowing `test` is indistinguishable by text alone.
 The helper was renamed to `pwTest`.
 **Regression test:** `tests/unit/traceability.test.ts` › `test-like text inside strings and comments is not a test (no false coverage)`.
 
+### DEF-009: A contract-medical line counts as a "claim" for the 25-point cap (OPEN, needs a rules decision)
+| Field | Value |
+|---|---|
+| Severity | Major if confirmed (wrong mod for risks with contract medical and at most one claim) |
+| Found by | Computing expected results for the worksheet redesign's contract-medical test |
+| Component | engine (`calculateMod`, cap counting) |
+| Status | **Open.** Not changed, because the redesign task forbids any change to calculation results. Needs a decision from whoever owns the rating rules |
+
+**Steps to reproduce:**
+1. POST `{"payroll":[{"classCode":"0005","payroll":1000000}],"claims":[],"contractMedical":[{"classCode":"0005","incurred":500000}]}`
+
+**Expected (by the Plan text):** Sec VI R6 limits the mod "for risks with only a single **claim** for which the Actual Primary
+Losses is greater than zero". Contract medical is reported by classification (Sec VI R2(b)), not per claim, so with
+no claims at all the single-claim limit arguably does not apply. The loss-free comparison is also unclear, because "if the risk had no claims"
+says nothing about contract medical.
+**Actual:** `capApplied: true`, `claimsWithPrimary: 1`, mod 1.02 (uncapped formula 6.37).
+**Root cause:** `claimsWithPrimary` counts every line in the breakdown with Ap > 0, and contract-medical lines are in that list.
+**Options:** (a) count only real claims (contract medical never triggers or blocks the cap); (b) keep the current
+behavior and record it as assumption 5 in `RatingPolicy`. Either way, add a unit test that pins the decision.
+**Regression test:** to be written once the rule is decided. `tests/ui/worksheet.spec.ts` currently pins only the
+contract-medical line value (Ap 113,000), not the cap.
+
 ## Defect trend
 
 | Found during | Defects | By severity | How found |
@@ -196,7 +218,8 @@ The helper was renamed to `pwTest`.
 | Observability (Task 4) | 2 | Major 2 | Code review, then a new test exposing a second bug |
 | Security and a11y (Task 6) | 3 | Major 2, Minor 1 | Exploratory negative testing, first axe run |
 | Test documentation (Task 7) | 1 | Minor 1 | Review of generated report |
-| **Total** | **8** | **Critical 0, Major 6, Minor 2** | All closed, each with a regression test |
+| Worksheet redesign | 1 (open) | Major 1, if confirmed | Deriving expected values from the Plan text before writing tests |
+| **Total** | **9** | **Critical 0, Major 7, Minor 2** | 8 closed, each with a regression test; 1 open pending a rules decision |
 
 Most defects sat on **contract edges and error paths** (DEF-001, 004, 005, 006) or in **non-functional and
 tooling layers** (002, 003, 007, 008). None came from the rating math, which example and property tests had already

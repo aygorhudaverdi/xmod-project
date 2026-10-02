@@ -101,8 +101,14 @@ export interface RatingResult {
   expectedPrimary: number;
   expectedExcess: number;
   actualPrimary: number;
+  /** Total Actual Losses over all claim lines (sum of the rounded line amounts). */
+  actualLosses: number;
+  /** actualLosses - actualPrimary. */
+  actualExcess: number;
   maximumLossValue: number;
   modUnrounded: string;
+  /** (Ap + Ee) / E before the 25-point cap; equals modUnrounded when the cap is not applied. */
+  modBeforeCap: string;
   lossFreeModUnrounded: string;
   /** Published mod as a factor, e.g. 0.87 */
   mod: number;
@@ -111,8 +117,10 @@ export interface RatingResult {
   claimsWithPrimary: number;
   eligible: boolean;
   eligibilityReason: string;
-  classes: { classCode: string; payroll: number; elr: string; expectedLosses: number; dRatio: string; expectedPrimary: number }[];
-  claims: ClaimResult[];
+  /** expectedExcess = expectedLosses - expectedPrimary on the rounded line amounts, so each line reconciles exactly. */
+  classes: { classCode: string; payroll: number; perUnitBasis: boolean; elr: string; expectedLosses: number; dRatio: string; expectedPrimary: number; expectedExcess: number }[];
+  /** actualExcess = actualLosses - actualPrimary for each line. */
+  claims: (ClaimResult & { actualExcess: number })[];
   policy: RatingPolicy;
 }
 
@@ -325,15 +333,22 @@ export function calculateMod(input: RatingInput, policy: RatingPolicy = DEFAULT_
       : `Expected losses ${E.toFixed(2)} < ${threshold} and not rated prior year`;
   }
 
+  // Display-only breakdowns for the worksheet layout. They never feed back into the mod above.
+  const ApRounded = Ap.toDecimalPlaces(2);
+  const AL = results.reduce((s, r) => s.plus(r.actualLosses), D(0));
+
   return {
     planEffective: PLAN.effective,
     expectedLosses: E.toDecimalPlaces(2).toNumber(),
     primaryThreshold: PT,
     expectedPrimary: Ep.toDecimalPlaces(2).toNumber(),
     expectedExcess: Ee.toDecimalPlaces(2).toNumber(),
-    actualPrimary: Ap.toDecimalPlaces(2).toNumber(),
+    actualPrimary: ApRounded.toNumber(),
+    actualLosses: AL.toNumber(),
+    actualExcess: AL.minus(ApRounded).toNumber(),
     maximumLossValue: PLAN.maximum_loss_value,
     modUnrounded: finalRaw.toSignificantDigits(12).toString(),
+    modBeforeCap: modRaw.toSignificantDigits(12).toString(),
     lossFreeModUnrounded: lossFreeRaw.toSignificantDigits(12).toString(),
     mod: mod.toNumber(),
     lossFreeMod: round(lossFreeRaw).toNumber(),
@@ -341,12 +356,16 @@ export function calculateMod(input: RatingInput, policy: RatingPolicy = DEFAULT_
     claimsWithPrimary,
     eligible,
     eligibilityReason: reason,
-    classes: classes.map((c) => ({
-      classCode: c.p.classCode, payroll: c.p.payroll, elr: c.row.elr,
-      expectedLosses: c.e.toDecimalPlaces(2).toNumber(), dRatio: c.dr.toString(),
-      expectedPrimary: c.ep.toDecimalPlaces(2).toNumber(),
-    })),
-    claims: results,
+    classes: classes.map((c) => {
+      const e = c.e.toDecimalPlaces(2);
+      const ep = c.ep.toDecimalPlaces(2);
+      return {
+        classCode: c.p.classCode, payroll: c.p.payroll, perUnitBasis: c.row.per_unit_basis, elr: c.row.elr,
+        expectedLosses: e.toNumber(), dRatio: c.dr.toString(),
+        expectedPrimary: ep.toNumber(), expectedExcess: e.minus(ep).toNumber(),
+      };
+    }),
+    claims: results.map((r) => ({ ...r, actualExcess: D(r.actualLosses).minus(r.actualPrimary).toNumber() })),
     policy,
   };
 }

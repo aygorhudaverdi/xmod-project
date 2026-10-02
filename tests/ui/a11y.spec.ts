@@ -39,6 +39,36 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
         expect(await violations(page)).toEqual([]);
       });
 
+      test(`US-07 redesigned worksheet with every revealed field and disclosure open (${scheme})`, async ({ page }) => {
+        await page.goto("/");
+        await page.getByTestId("employer").fill("Acme Fictional Co");
+        await page.getByTestId("payroll-row").first().getByTestId("class-code").fill("0005");
+        await page.getByTestId("payroll-row").first().getByTestId("payroll").fill("1000000");
+        await page.getByTestId("payroll-row").first().getByTestId("policy-year").fill("2024");
+        for (const injury of ["s-claim", "contract-medical", "ttd"]) {
+          await page.getByTestId("add-claim").click();
+          const row = page.getByTestId("claim-row").last();
+          await row.getByTestId("injury-type").selectOption(injury);
+          await row.getByTestId("incurred").fill("1000");
+        }
+        await page.getByTestId("claim-row").nth(0).getByTestId("net-incurred").fill("500");
+        await page.getByTestId("claim-row").nth(1).getByTestId("cm-class").fill("0005");
+        const last = page.getByTestId("claim-row").nth(2);
+        await last.getByTestId("special-handling").locator("summary").click();
+        await last.getByTestId("treatment").selectOption("joint");
+        await last.getByTestId("net-incurred").fill("500");
+        await page.getByTestId("calculate").click();
+        await expect(page.getByTestId("claim-table")).toBeVisible();
+        await page.getByTestId("calc-explain").locator("summary").click();
+        expect(await violations(page)).toEqual([]);
+        // Every table header is a real <th> with a scope (col for column headers, row/rowgroup for row headers).
+        const ths = page.locator("#panel-calc th");
+        expect(await ths.count()).toBeGreaterThan(20);
+        expect(await page.locator("#panel-calc th:not([scope])").count()).toBe(0);
+        expect(await page.locator('#panel-calc thead th:not([scope="col"])').count()).toBe(0);
+        expect(await page.locator("#panel-calc td[scope], #panel-calc thead td").count()).toBe(0);
+      });
+
       test(`stories tab (${scheme})`, async ({ page }) => {
         await page.goto("/");
         await page.getByTestId("tab-stories").click();

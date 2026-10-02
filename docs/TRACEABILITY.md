@@ -10,25 +10,27 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 
 | Story | Title | Unit | API | UI | Total |
 |---|---|---:|---:|---:|---:|
-| US-01 | Calculate a mod from payroll and claims | 10 | 1 | 2 | 13 |
+| US-01 | Calculate a mod from a simple worksheet entry | 10 | 1 | 4 | 15 |
 | US-02 | Primary threshold and claim valuation | 4 | 1 | 1 | 6 |
-| US-03 | Exception claim types | 14 | 3 | 1 | 18 |
-| US-04 | Single-claim 25-point cap | 7 | 2 | 1 | 10 |
+| US-03 | Exception claim types | 14 | 3 | 7 | 24 |
+| US-04 | Single-claim 25-point cap | 7 | 2 | 2 | 11 |
 | US-05 | Eligibility | 2 | 2 | 1 | 5 |
 | US-06 | Input validation and clear errors | 10 | 13 | 3 | 26 |
-| US-07 | Transparent breakdown | 0 | 1 | 4 | 5 |
+| US-07 | Result laid out like the experience rating worksheet | 4 | 3 | 13 | 20 |
 | US-08 | Quality dashboard | 14 | 3 | 10 | 27 |
 | US-09 | Experience period and rating effective date | 24 | 8 | 0 | 32 |
 
-## US-01: Calculate a mod from payroll and claims
+## US-01: Calculate a mod from a simple worksheet entry
 
-> As a premium auditor I want the mod computed from payroll by class and claim losses so I can apply it to a policy.
+> As a premium auditor I want to enter payroll by class and each claim's incurred loss, the way the experience rating worksheet lists them, and get the Experience Modification.
 
 **Acceptance criteria**
 
-1. Mod = (Actual Primary + Expected Excess) / Expected
-2. Expected losses = Σ payroll × ELR / 100 (per-capita classes not divided)
-3. Primary threshold is looked up from total expected losses (Table II)
+1. Experience Modification = (Actual Primary + Expected Excess) / Expected
+2. Expected Losses = Σ payroll × Expected Loss Rate / 100; per-capita classes are entered in units and not divided (the payroll label switches to units)
+3. Primary Threshold is looked up from total Expected Losses (Table II)
+4. A claim needs only Claim number, Injury type, Open/Closed and Incurred loss; Open/Closed does not affect the result
+5. Sample risks (loss-free, two small claims, one large claim, death claim, per-capita class) load with one click
 
 **Tests**
 
@@ -47,6 +49,8 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | api | `tests/api/xmod.api.spec.ts` | US-01 loss-free reference risk |
 | ui | `tests/ui/a11y.spec.ts` | US-01 calculator tab, empty form (${scheme}) |
 | ui | `tests/ui/calculator.spec.ts` | US-01 calculates the reference risk |
+| ui | `tests/ui/worksheet.spec.ts` | US-01 entering a per-capita class switches the payroll label to units and shows the ELR |
+| ui | `tests/ui/worksheet.spec.ts` | US-01 sample "${label}" gives mod ${mod} |
 
 ## US-02: Primary threshold and claim valuation
 
@@ -75,10 +79,11 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 
 **Acceptance criteria**
 
-1. Subrogation takes $250 off after the net/gross ratio; joint coverage takes it off before
-2. Plain death claims use the $175,000 Average Death Value
-3. Multi-person accident primary is capped at 2×PT − $500
-4. Non-compensable and COVID Cat.12 (12/1/2019–8/31/2024) claims are excluded
+1. Injury type Death uses the $175,000 Average Death Value; Compromised Death or "S" Claim asks for Net incurred; Contract Medical asks for the class and is valued at incurred × D-ratio
+2. Subrogation, fraud, joint coverage, non-compensable, EL + WC and multi-person accidents are under a per-claim Special handling disclosure
+3. Subrogation takes $250 off after the net/gross ratio; joint coverage takes it off before
+4. Multi-person accident primary is capped at 2×PT − $500
+5. Non-compensable and COVID Cat.12 (12/1/2019–8/31/2024) claims are excluded
 
 **Tests**
 
@@ -102,6 +107,12 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | api | `tests/api/xmod.api.spec.ts` | US-03 multi-person accident is one capped line |
 | api | `tests/api/xmod.api.spec.ts` | US-03 COVID Cat.12 claim is excluded |
 | ui | `tests/ui/calculator.spec.ts` | US-03 non-compensable claim is excluded in the UI |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 Death applies the $175,000 Average Death Value and Ap = PT - 250 |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 "S" claim reveals Net incurred and uses the compromise ratio (100,000 gross, 40,000 net -> AL 70,000, Ap 3,150) |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 Contract medical reveals Class, hides special handling, and Ap = incurred x D-ratio (500,000 in 0005 -> 113,000) |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 subrogation and joint coverage reveal Net incurred and differ by $125 |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 fraud treatment uses the net/gross ratio like subrogation |
+| ui | `tests/ui/worksheet.spec.ts` | US-03 non-compensable, EL + WC and accident id still work from the disclosure |
 
 ## US-04: Single-claim 25-point cap
 
@@ -127,6 +138,7 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | api | `tests/api/xmod.api.spec.ts` | US-04 single large claim is capped |
 | api | `tests/api/xmod.api.spec.ts` | US-04 cap is off when unaudited payroll was excluded |
 | ui | `tests/ui/calculator.spec.ts` | US-04 shows the cap badge, and removes it when unaudited payroll is excluded |
+| ui | `tests/ui/worksheet.spec.ts` | US-04 the cap badge comes with its explanation |
 
 ## US-05: Eligibility
 
@@ -190,24 +202,42 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | ui | `tests/ui/calculator.spec.ts` | US-06 unknown class shows an error and no mod |
 | ui | `tests/ui/calculator.spec.ts` | US-06 a later valid calculation clears the previous error |
 
-## US-07: Transparent breakdown
+## US-07: Result laid out like the experience rating worksheet
 
-> As a quality analyst I want to see how the mod was derived so I can verify it independently.
+> As a quality analyst I want the result in the worksheet's sections and vocabulary so I can verify it line by line against a ratesheet.
 
 **Acceptance criteria**
 
-1. Shows E, PT, Ep, Ee, Ap, loss-free mod
-2. Lists each claim's Actual Losses, Actual Primary and the rule applied
+1. Heading shows employer, policy, effective and issue dates, and the Primary Threshold
+2. Summary of Payroll and Expected Losses: Class, Payroll, Expected Loss Rate, Expected Losses, D-Ratio, Expected Primary, Expected Excess, with totals
+3. Summary of Claims and Actual Losses: Claim number, Injury type, Open/Closed, Actual Losses, Actual Primary, Actual Excess, with totals and the Plan rule applied
+4. Experience Period Totals, Experience Modification and Loss-Free Rating; Expected Primary + Expected Excess = Expected and Actual Primary + Actual Excess = Actual on every line
+5. A 'How this was calculated' section shows the formula with the numbers substituted
 
 **Tests**
 
 | Level | File | Test |
 |---|---|---|
+| unit | `tests/unit/worksheet.test.ts` | US-07 each class line: Expected Primary + Expected Excess = Expected Losses |
+| unit | `tests/unit/worksheet.test.ts` | US-07 each claim line: Actual Primary + Actual Excess = Actual Losses (MLV-capped claim included) |
+| unit | `tests/unit/worksheet.test.ts` | US-07 totals: actual losses = sum of lines; actual excess = actual losses - actual primary |
+| unit | `tests/unit/worksheet.test.ts` | US-07 property: lines reconcile and totals match line sums within rounding, for random risks |
 | api | `tests/api/xmod.api.spec.ts` | US-07 response carries a per-claim breakdown with the rule applied |
+| api | `tests/api/xmod.api.spec.ts` | US-07 expectedExcess per class and actualExcess per claim are present and reconcile |
+| api | `tests/api/xmod.api.spec.ts` | US-07 adding the breakdown did not change the reference results |
 | ui | `tests/ui/a11y.spec.ts` | US-07 calculator tab with a result and claim breakdown (${scheme}) |
+| ui | `tests/ui/a11y.spec.ts` | US-07 redesigned worksheet with every revealed field and disclosure open (${scheme}) |
 | ui | `tests/ui/calculator.spec.ts` | US-07 shows claim breakdown with the applied rule |
 | ui | `tests/ui/security.spec.ts` | US-07 injection-style claim ids are shown as text in the breakdown and never executed |
 | ui | `tests/ui/security.spec.ts` | US-07 an error message carrying markup is rendered as text |
+| ui | `tests/ui/worksheet.spec.ts` | US-07 a claim needs only the four visible fields; extras stay hidden |
+| ui | `tests/ui/worksheet.spec.ts` | US-07 the injury type dropdown offers exactly the worksheet codes |
+| ui | `tests/ui/worksheet.spec.ts` | US-07 Open/Closed is informational: same mod either way, and the control says so |
+| ui | `tests/ui/worksheet.spec.ts` | US-01 entering a per-capita class switches the payroll label to units and shows the ELR |
+| ui | `tests/ui/worksheet.spec.ts` | US-07 totals rows equal the sum of rows; Ep + Ee = E and Ap + Ax = AL on every line and in the period totals |
+| ui | `tests/ui/worksheet.spec.ts` | US-07 heading, Primary Threshold, Loss-Free Rating and the formula explanation |
+| ui | `tests/ui/worksheet.spec.ts` | US-07 policy years group the payroll summary (display only) |
+| ui | `tests/ui/worksheet.spec.ts` | US-04 the cap badge comes with its explanation |
 
 ## US-08: Quality dashboard
 

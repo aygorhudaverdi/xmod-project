@@ -22,6 +22,10 @@ were a real product, because the techniques transfer.
 - The Sept 2026 Plan values (eligibility $11,700, 3-decimal ELRs); the tables are not loaded.
 - The correctness of the source PDF itself. Tables are trusted once `tools/extract_tables.py` has parsed them,
   and spot-checked by hand-computed expectations in unit tests.
+- **Known gap: grouping by policy.** The real worksheet groups payroll and claims by policy (and policy
+  period). The engine has no policy concept in `/api/xmod/calculate`: the calculator's "Policy year" field is a
+  display-only label that groups rows in the payroll summary and is never sent to the engine. Claims are not
+  grouped. `POST /api/xmod/experience-period` (US-09) does work per policy, but the calculator does not use it yet.
 - Browsers other than Chromium, mobile layouts beyond a basic responsive check, load beyond a single instance.
 
 ## 2. Test levels

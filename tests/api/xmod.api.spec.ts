@@ -186,3 +186,32 @@ test.describe("US-08 dashboard feeds", () => {
     expect(await r.json()).toEqual({ available: false, message: expect.stringContaining("No Playwright results") });
   });
 });
+
+test.describe("US-07 worksheet breakdown in the API response", () => {
+  test("US-07 expectedExcess per class and actualExcess per claim are present and reconcile", async ({ request }) => {
+    const b = await (await calc(request, {
+      payroll: [{ classCode: "0005", payroll: 1_000_000 }, { classCode: "3634", payroll: 500_000 }],
+      claims: [{ id: "a", indemnity: 4_000, medical: 0 }, { id: "b", indemnity: 300_000, medical: 0 }],
+      contractMedical: [{ classCode: "0005", incurred: 10_000 }],
+    })).json();
+    const cents = (n: number) => Math.round(n * 100);
+    for (const c of b.classes) {
+      expect(c.expectedExcess).toEqual(expect.any(Number));
+      expect(cents(c.expectedPrimary) + cents(c.expectedExcess)).toBe(cents(c.expectedLosses));
+    }
+    for (const c of b.claims) {
+      expect(c.actualExcess).toEqual(expect.any(Number));
+      expect(cents(c.actualPrimary) + cents(c.actualExcess)).toBe(cents(c.actualLosses));
+    }
+    expect(b.classes[0]).toMatchObject({ expectedLosses: 20_200, expectedPrimary: 4_949, expectedExcess: 15_251, perUnitBasis: false });
+    expect(b.claims.find((c: { id: string }) => c.id === "b")).toMatchObject({ actualLosses: 175_000, actualPrimary: 9_250, actualExcess: 165_750 });
+    expect(cents(b.actualLosses)).toBe(b.claims.reduce((s: number, c: { actualLosses: number }) => s + cents(c.actualLosses), 0));
+    expect(cents(b.actualPrimary) + cents(b.actualExcess)).toBe(cents(b.actualLosses));
+  });
+  test("US-07 adding the breakdown did not change the reference results", async ({ request }) => {
+    const b = await (await calc(request, risk([{ id: "a", indemnity: 20_000, medical: 0 }]))).json();
+    expect(b).toMatchObject({ expectedLosses: 20_200, primaryThreshold: 8_500, expectedExcess: 15_634.8, actualPrimary: 8_250, mod: 1.02, capApplied: true });
+    expect(b.modBeforeCap).toBe("1.18241584158"); // (8,250 + 15,634.80) / 20,200
+    expect(b.modUnrounded).toBe("1.02400990099");
+  });
+});

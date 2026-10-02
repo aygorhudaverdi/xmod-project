@@ -33,122 +33,296 @@ $("#stories").innerHTML = STORIES.map((s) => `
   <div class="story" data-testid="story-${s.id}"><h3>${s.id} — ${esc(s.title)}</h3><p>${esc(s.story)}</p>
   <ul>${s.ac.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>`).join("");
 
-// ---- class datalist
+// ---- class reference data: datalist, ELR hint and per-capita labelling
 fetch("/api/classes").then((r) => r.json()).then((list) => {
-  $("#class-list").innerHTML = list.map((c) => `<option value="${c.classCode}">`).join("");
+  $("#class-list").innerHTML = list.map((c) => `<option value="${esc(c.classCode)}">`).join("");
 }).catch(() => {});
-
-// ---- rows
-let seq = 0;
-let uid = 0; // unique per row, so every <label for> points at exactly one control (axe "label" rule)
-function addPayroll(code = "", payroll = "") {
-  const u = `p${++uid}`;
-  const d = document.createElement("div");
-  d.className = "row payroll"; d.dataset.testid = "payroll-row";
-  d.innerHTML = `<div><label for="${u}-code">Class code</label><input id="${u}-code" list="class-list" data-field="classCode" data-testid="class-code" inputmode="numeric" maxlength="4" value="${esc(code)}"></div>
-    <div><label for="${u}-pay">Payroll ($) / units</label><input id="${u}-pay" data-field="payroll" data-testid="payroll" inputmode="decimal" value="${esc(payroll)}"></div>
-    <button class="btn x" type="button" aria-label="Remove class" data-testid="remove-payroll">✕</button>`;
-  $(".x", d).onclick = () => d.remove();
-  $("#payroll-rows").append(d);
+const classCache = new Map();
+function lookupClass(code) {
+  if (!/^\d{4}$/.test(code)) return Promise.resolve(null);
+  if (!classCache.has(code)) {
+    classCache.set(code, fetch(`/api/classes/${code}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  }
+  return classCache.get(code);
 }
+
+// ---- worksheet vocabulary
+const INJURY_TYPES = [
+  ["death", "Death"],
+  ["ptd", "Permanent Total Disability"],
+  ["major-ppd", "Major Permanent Partial Disability"],
+  ["minor-ppd", "Minor Permanent Partial Disability"],
+  ["ttd", "Temporary Total or Temporary Partial Disability"],
+  ["med-only", "Medical Only Claim"],
+  ["contract-medical", "Contract Medical or Hospital Allowances"],
+  ["s-claim", 'Compromised Death or "S" Claim'],
+];
+const injuryLabel = (v) => (INJURY_TYPES.find(([k]) => k === v) ?? [, v])[1];
+const OPEN_CLOSED_HELP = "Informational only: open or closed status does not change the calculation.";
+
+// ---- payroll rows
+let seq = 0;
+let uid = 0; // unique per row, so every <label for> points at exactly one control
+function addPayroll({ year = "", code = "", payroll = "" } = {}) {
+  const u = `p${++uid}`;
+  const tr = document.createElement("tr");
+  tr.className = "payroll-line"; tr.dataset.testid = "payroll-row";
+  tr.innerHTML = `
+    <td><label class="sr-only" for="${u}-yr">Policy year</label><input id="${u}-yr" data-field="policyYear" data-testid="policy-year" inputmode="numeric" maxlength="9" value="${esc(year)}"></td>
+    <td><label class="sr-only" for="${u}-code">Class code</label><input id="${u}-code" list="class-list" data-field="classCode" data-testid="class-code" inputmode="numeric" maxlength="4" value="${esc(code)}"></td>
+    <td><label class="sr-only" for="${u}-pay" data-testid="payroll-label">Payroll ($)</label><input id="${u}-pay" data-field="payroll" data-testid="payroll" inputmode="decimal" placeholder="dollars" value="${esc(payroll)}"></td>
+    <td class="hint" data-testid="elr-hint" aria-live="polite"></td>
+    <td><button class="btn x" type="button" aria-label="Remove class" data-testid="remove-payroll">✕</button></td>`;
+  $(".x", tr).onclick = () => tr.remove();
+  const codeInput = $("[data-field=classCode]", tr);
+  const refresh = async () => {
+    const code = codeInput.value.trim();
+    const info = await lookupClass(code);
+    if (codeInput.value.trim() !== code) return; // a newer keystroke wins
+    const perUnit = !!info?.perUnitBasis;
+    $("[data-testid=payroll-label]", tr).textContent = perUnit ? "Units (per capita)" : "Payroll ($)";
+    $("[data-field=payroll]", tr).placeholder = perUnit ? "units" : "dollars";
+    $("[data-testid=elr-hint]", tr).textContent = !code ? "" : !info ? (code.length === 4 ? "Unknown class" : "")
+      : perUnit ? `${info.elr} per unit (per capita)` : `${info.elr} per $100 payroll`;
+  };
+  codeInput.addEventListener("input", refresh);
+  $("#payroll-rows").append(tr);
+  if (code) refresh();
+}
+
+// ---- claim rows: one <tbody> per claim (main row + extras row), so per-claim test ids stay scoped
 function addClaim(c = {}) {
   seq++;
   const u = `c${++uid}`;
-  const d = document.createElement("div");
-  d.className = "row claim"; d.dataset.testid = "claim-row";
-  d.innerHTML = `
-    <div><label for="${u}-id">Claim id</label><input id="${u}-id" data-field="id" data-testid="claim-id" maxlength="100" value="${esc(c.id ?? "C" + seq)}"></div>
-    <div><label for="${u}-ind">Indemnity ($)</label><input id="${u}-ind" data-field="indemnity" data-testid="indemnity" inputmode="decimal" value="${esc(c.indemnity ?? "")}"></div>
-    <div><label for="${u}-med">Medical ($)</label><input id="${u}-med" data-field="medical" data-testid="medical" inputmode="decimal" value="${esc(c.medical ?? "")}"></div>
-    <div><label for="${u}-tr">Treatment</label><select id="${u}-tr" data-field="treatment" data-testid="treatment">
-      ${["none", "subrogation", "fraud", "compromise", "joint"].map((t) => `<option ${c.treatment === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
-    <button class="btn x" type="button" aria-label="Remove claim" data-testid="remove-claim">✕</button>
-    <div class="opts">
-      <label class="net">Net incurred ($) <input data-field="netIncurred" data-testid="net-incurred" inputmode="decimal" value="${esc(c.netIncurred ?? "")}"></label>
-      <label><input type="checkbox" data-field="death" data-testid="death" ${c.death ? "checked" : ""}> Death</label>
-      <label><input type="checkbox" data-field="nonCompensable" data-testid="non-compensable" ${c.nonCompensable ? "checked" : ""}> Non-compensable</label>
-      <label><input type="checkbox" data-field="elAndWc" data-testid="el-wc" ${c.elAndWc ? "checked" : ""}> EL + WC</label>
-      <label>Accident id <input data-field="accidentId" data-testid="accident-id" class="accident" value="${esc(c.accidentId ?? "")}"></label>
-    </div>`;
-  $(".x", d).onclick = () => d.remove();
-  $("#claim-rows").append(d);
+  const tb = document.createElement("tbody");
+  tb.className = "claim"; tb.dataset.testid = "claim-row";
+  const opt = (list, sel) => list.map(([v, l]) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(l)}</option>`).join("");
+  tb.innerHTML = `
+    <tr>
+      <td><label class="sr-only" for="${u}-id">Claim number</label><input id="${u}-id" data-field="id" data-testid="claim-id" maxlength="100" value="${esc(c.id ?? "C" + seq)}"></td>
+      <td><label class="sr-only" for="${u}-inj">Injury type</label><select id="${u}-inj" data-field="injury" data-testid="injury-type">${opt(INJURY_TYPES, c.injury ?? "ttd")}</select></td>
+      <td><label class="sr-only" for="${u}-oc">Open or closed</label><select id="${u}-oc" data-field="status" data-testid="open-closed" title="${OPEN_CLOSED_HELP}">${opt([["Open", "Open"], ["Closed", "Closed"]], c.status ?? "Open")}</select></td>
+      <td><label class="sr-only" for="${u}-inc">Incurred loss ($)</label><input id="${u}-inc" data-field="incurred" data-testid="incurred" inputmode="decimal" value="${esc(c.incurred ?? "")}"></td>
+      <td><button class="btn x" type="button" aria-label="Remove claim" data-testid="remove-claim">✕</button></td>
+    </tr>
+    <tr class="claim-extra">
+      <td colspan="5">
+        <span class="extra" data-show="net" hidden><label for="${u}-net">Net incurred ($)</label><input id="${u}-net" data-field="netIncurred" data-testid="net-incurred" inputmode="decimal" value="${esc(c.netIncurred ?? "")}"></span>
+        <span class="extra" data-show="cm" hidden><label for="${u}-cm">Class</label><input id="${u}-cm" data-field="cmClass" data-testid="cm-class" list="class-list" inputmode="numeric" maxlength="4" value="${esc(c.cmClass ?? "")}"></span>
+        <details class="special" data-testid="special-handling" ${c.open ? "open" : ""}>
+          <summary>Special handling</summary>
+          <div class="special-body">
+            <span class="extra"><label for="${u}-tr">Treatment</label><select id="${u}-tr" data-field="treatment" data-testid="treatment" class="auto">${opt([["none", "none"], ["subrogation", "subrogation"], ["fraud", "fraud"], ["joint", "joint coverage"]], c.treatment ?? "none")}</select></span>
+            <label><input type="checkbox" data-field="nonCompensable" data-testid="non-compensable" ${c.nonCompensable ? "checked" : ""}> Non-compensable</label>
+            <label><input type="checkbox" data-field="elAndWc" data-testid="el-wc" ${c.elAndWc ? "checked" : ""}> EL + WC</label>
+            <span class="extra"><label for="${u}-acc">Accident id (multi-person)</label><input id="${u}-acc" data-field="accidentId" data-testid="accident-id" class="accident" value="${esc(c.accidentId ?? "")}"></span>
+          </div>
+        </details>
+      </td>
+    </tr>`;
+  const g = (f) => $(`[data-field=${f}]`, tb);
+  const sync = () => {
+    const injury = g("injury").value;
+    const sClaim = injury === "s-claim";
+    const cm = injury === "contract-medical";
+    // "S" claims are compromised deaths: their treatment is fixed, so the treatment picker is locked.
+    g("treatment").disabled = sClaim;
+    g("treatment").title = sClaim ? 'Fixed to "compromise" for a Compromised Death or "S" Claim' : "";
+    $("[data-show=net]", tb).hidden = !(sClaim || (!cm && g("treatment").value !== "none"));
+    $("[data-show=cm]", tb).hidden = !cm;
+    $("details.special", tb).hidden = cm; // contract medical is valued by class D-ratio; no claim exceptions apply
+  };
+  g("injury").addEventListener("change", sync);
+  g("treatment").addEventListener("change", sync);
+  $(".x", tb).onclick = () => tb.remove();
+  $("#claim-rows").append(tb);
+  sync();
 }
 $("#add-payroll").onclick = () => addPayroll();
 $("#add-claim").onclick = () => addClaim();
 
+// ---- sample risks (fictional)
+const SAMPLES = [
+  ["loss-free", "Loss-free", { payroll: [["2024", "0005", 1_000_000]], claims: [] }],
+  ["two-small", "Two small claims", { payroll: [["2024", "0005", 1_000_000]], claims: [
+    { id: "C-1001", injury: "ttd", status: "Closed", incurred: 1_000 }, { id: "C-1002", injury: "med-only", status: "Closed", incurred: 1_000 }] }],
+  ["one-large", "One large claim (cap applies)", { payroll: [["2024", "0005", 1_000_000]], claims: [
+    { id: "C1", injury: "major-ppd", status: "Open", incurred: 20_000 }] }],
+  ["death", "Death claim", { payroll: [["2024", "0005", 3_000_000]], claims: [
+    { id: "D-2001", injury: "death", status: "Open", incurred: 250_000 }] }],
+  ["per-capita", "Per-capita class 7707", { payroll: [["2024", "7707", 100]], claims: [] }],
+];
+$("#sample-select").innerHTML = SAMPLES.map(([k, l]) => `<option value="${k}" ${k === "one-large" ? "selected" : ""}>${esc(l)}</option>`).join("");
+
 function reset() {
-  $("#payroll-rows").innerHTML = ""; $("#claim-rows").innerHTML = ""; seq = 0;
+  $("#payroll-rows").innerHTML = ""; $("#claim-rows").querySelectorAll("tbody.claim").forEach((t) => t.remove()); seq = 0;
+  for (const id of ["employer", "policy-number", "effective-date", "issue-date"]) $(`#${id}`).value = "";
   $("#prior-rated").checked = false; $("#excl-unaudited").checked = false;
-  $("#result").innerHTML = `<h2>Result</h2><p class="note" id="placeholder">Enter payroll and claims, then calculate.</p>`;
+  $("#result").innerHTML = `<h2>Experience rating worksheet</h2><p class="note" id="placeholder">Enter payroll and claims, then calculate.</p>`;
   addPayroll();
 }
 $("#reset").onclick = reset;
 $("#load-sample").onclick = () => {
-  reset(); $("#payroll-rows").innerHTML = ""; addPayroll("0005", "1000000");
-  addClaim({ id: "C1", indemnity: 20000, medical: 0 });
+  const [, label, s] = SAMPLES.find(([k]) => k === $("#sample-select").value);
+  reset(); $("#payroll-rows").innerHTML = "";
+  $("#employer").value = `Sample employer: ${label}`;
+  $("#policy-number").value = "SAMPLE-0001";
+  for (const [year, code, payroll] of s.payroll) addPayroll({ year, code, payroll });
+  for (const c of s.claims) addClaim(c);
 };
 
-// ---- calculate
+// ---- collect: worksheet entry -> unchanged engine contract
 const numOrUndef = (v) => (v === "" ? undefined : Number(v));
 function collect() {
-  const payroll = [...document.querySelectorAll("#payroll-rows .row")].map((r) => ({
-    classCode: $('[data-field=classCode]', r).value.trim(), payroll: Number($('[data-field=payroll]', r).value || 0),
+  const lines = [...document.querySelectorAll("#payroll-rows tr.payroll-line")].map((r) => ({
+    policyYear: $("[data-field=policyYear]", r).value.trim(),
+    classCode: $("[data-field=classCode]", r).value.trim(), payroll: Number($("[data-field=payroll]", r).value || 0),
   }));
-  const claims = [...document.querySelectorAll("#claim-rows .row")].map((r) => {
-    const g = (f) => $(`[data-field=${f}]`, r);
-    const treatment = g("treatment").value;
+  const claims = [];
+  const contractMedical = [];
+  const meta = { byId: new Map(), contractMedical: [] }; // display-only data the engine does not take
+  for (const tb of document.querySelectorAll("#claim-rows tbody.claim")) {
+    const g = (f) => $(`[data-field=${f}]`, tb);
+    const injury = g("injury").value;
+    const number = g("id").value.trim();
+    const incurred = Number(g("incurred").value || 0);
+    const info = { number, injury: injuryLabel(injury), status: g("status").value };
+    if (injury === "contract-medical") {
+      contractMedical.push({ classCode: g("cmClass").value.trim(), incurred });
+      meta.contractMedical.push(info);
+      continue;
+    }
+    const claim = { id: number, indemnity: incurred, medical: 0 }; // one incurred field: sent as indemnity, medical 0
+    if (injury === "death") claim.death = true;
+    if (injury === "s-claim") Object.assign(claim, { death: true, treatment: "compromise", netIncurred: numOrUndef(g("netIncurred").value) });
+    else if (g("treatment").value !== "none") Object.assign(claim, { treatment: g("treatment").value, netIncurred: numOrUndef(g("netIncurred").value) });
+    if (g("nonCompensable").checked) claim.nonCompensable = true;
+    if (g("elAndWc").checked) claim.elAndWc = true;
     const accidentId = g("accidentId").value.trim();
-    return {
-      id: g("id").value.trim(), indemnity: Number(g("indemnity").value || 0), medical: Number(g("medical").value || 0),
-      treatment, netIncurred: numOrUndef(g("netIncurred").value), death: g("death").checked,
-      nonCompensable: g("nonCompensable").checked, elAndWc: g("elAndWc").checked,
-      ...(accidentId ? { accidentId, multiPerson: true } : {}),
-    };
-  });
-  return { payroll, claims, priorYearExperienceRated: $("#prior-rated").checked, excludedUnauditedPayroll: $("#excl-unaudited").checked };
+    if (accidentId) Object.assign(claim, { accidentId, multiPerson: true });
+    claims.push(claim);
+    meta.byId.set(number, info);
+  }
+  const body = {
+    payroll: lines.map(({ classCode, payroll }) => ({ classCode, payroll })), claims,
+    ...(contractMedical.length ? { contractMedical } : {}),
+    priorYearExperienceRated: $("#prior-rated").checked, excludedUnauditedPayroll: $("#excl-unaudited").checked,
+  };
+  const heading = {
+    employer: $("#employer").value.trim(), policy: $("#policy-number").value.trim(),
+    effective: $("#effective-date").value, issued: $("#issue-date").value,
+  };
+  return { body, lines, meta, heading };
 }
 
 $("#calculate").onclick = async () => {
   const box = $("#result");
   box.setAttribute("aria-busy", "true");
   try {
-    const res = await fetch("/api/xmod/calculate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(collect()) });
+    const { body: payload, lines, meta, heading } = collect();
+    const res = await fetch("/api/xmod/calculate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const body = await res.json();
     if (!res.ok) {
-      box.innerHTML = `<h2>Result</h2><div class="err" role="alert" data-testid="error"><b data-testid="error-code">${esc(body.error.code)}</b>: <span data-testid="error-message">${esc(body.error.message)}</span></div>`;
+      box.innerHTML = `<h2>Experience rating worksheet</h2><div class="err" role="alert" data-testid="error"><b data-testid="error-code">${esc(body.error.code)}</b>: <span data-testid="error-message">${esc(body.error.message)}</span></div>`;
       return;
     }
-    render(box, body);
+    render(box, body, { lines, meta, heading });
   } catch {
-    box.innerHTML = `<h2>Result</h2><div class="err" role="alert" data-testid="error">Could not reach the server.</div>`;
+    box.innerHTML = `<h2>Experience rating worksheet</h2><div class="err" role="alert" data-testid="error">Could not reach the server.</div>`;
   } finally { box.removeAttribute("aria-busy"); }
 };
 
-function render(box, r) {
+// ---- render: worksheet layout
+const dash = (v) => (v ? esc(v) : "—");
+const fmtDate = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "");
+const num = (n, col) => `<td class="n"${col ? ` data-col="${col}"` : ""}>${money(n)}</td>`;
+
+function render(box, r, { lines, meta, heading }) {
+  // Payroll summary. r.classes is index-aligned with the payroll lines sent.
+  const classRows = r.classes.map((c, i) => ({ c, year: lines[i]?.policyYear ?? "" }));
+  const grouped = classRows.some((x) => x.year);
+  if (grouped) classRows.sort((a, b) => String(a.year).localeCompare(String(b.year)));
+  let lastYear = null;
+  const payrollBody = classRows.map(({ c, year }) => {
+    const head = grouped && year !== lastYear
+      ? `<tr class="group" data-testid="policy-year-group"><th scope="rowgroup" colspan="7">Policy year ${dash(year)}</th></tr>` : "";
+    lastYear = year;
+    const payroll = c.perUnitBasis ? `${Number(c.payroll).toLocaleString("en-US")} units` : `$${Number(c.payroll).toLocaleString("en-US")}`;
+    return `${head}<tr data-testid="class-row"><th scope="row">${esc(c.classCode)}</th><td class="n" data-col="payroll">${esc(payroll)}</td>
+      <td class="n">${esc(c.elr)}</td>${num(c.expectedLosses, "expected")}<td class="n">${esc(c.dRatio)}</td>${num(c.expectedPrimary, "ep")}${num(c.expectedExcess, "ee")}</tr>`;
+  }).join("");
+
+  // Claims summary: engine order is plain claims, then grouped multi-person accidents, then contract medical.
+  let cm = 0;
+  const claimRows = r.claims.map((c) => {
+    let info = meta.byId.get(c.id);
+    if (!info && c.id.startsWith("contract-medical:")) info = meta.contractMedical[cm++];
+    if (!info && c.id.startsWith("accident:")) info = { number: c.id, injury: "Multi-person accident", status: "" };
+    info ??= { number: c.id, injury: "", status: "" };
+    return `<tr data-testid="claim-result"><th scope="row"><span data-testid="claim-number">${esc(info.number)}</span><span class="rule" data-testid="claim-rule" title="Plan rule applied">${esc(c.rule)}</span></th>
+      <td>${esc(info.injury)}</td><td>${esc(info.status)}</td>${num(c.actualLosses, "al")}${num(c.actualPrimary, "ap")}${num(c.actualExcess, "ax")}</tr>`;
+  }).join("") || `<tr><td colspan="6" class="note">No claims in the experience period.</td></tr>`;
+
+  const capNote = r.capApplied
+    ? `<p class="note" data-testid="cap-explanation">Only one claim has Actual Primary above $0, so the modification is limited to the loss-free rating plus 25 points (${esc(r.lossFreeModUnrounded)} + 0.25). Formula result before the limit: ${esc(r.modBeforeCap)}.</p>` : "";
+
   box.innerHTML = `
-    <h2>Result</h2>
-    <div class="mod" data-testid="mod">${r.mod.toFixed(2)} <small>(${Math.round(r.mod * 100)}%)</small></div>
+    <h2>Experience rating worksheet</h2>
+    <div class="ws-head" data-testid="ws-heading">
+      <dl class="ws-meta">
+        <dt>Employer</dt><dd data-testid="ws-employer">${dash(heading.employer)}</dd>
+        <dt>Policy number</dt><dd data-testid="ws-policy">${dash(heading.policy)}</dd>
+        <dt>Effective date</dt><dd data-testid="ws-effective">${dash(fmtDate(heading.effective))}</dd>
+        <dt>Issue date</dt><dd data-testid="ws-issued">${dash(fmtDate(heading.issued))}</dd>
+      </dl>
+      <div class="pt-box" data-testid="primary-threshold"><span class="kpi-label">Primary Threshold</span><span class="kpi-value" data-testid="pt">${money(r.primaryThreshold)}</span></div>
+    </div>
+
+    <h3 class="sub">Summary of Payroll and Expected Losses</h3>
+    <div class="table-wrap"><table data-testid="class-table">
+      <thead><tr><th scope="col">Class</th><th scope="col" class="n">Payroll</th><th scope="col" class="n">Expected Loss Rate</th><th scope="col" class="n">Expected Losses</th><th scope="col" class="n">D-Ratio</th><th scope="col" class="n">Expected Primary</th><th scope="col" class="n">Expected Excess</th></tr></thead>
+      <tbody>${payrollBody}</tbody>
+      <tfoot><tr class="totals" data-testid="totals-row" data-table="payroll"><th scope="row">Total</th><td></td><td></td>${num(r.expectedLosses, "expected")}<td></td>${num(r.expectedPrimary, "ep")}${num(r.expectedExcess, "ee")}</tr></tfoot>
+    </table></div>
+
+    <h3 class="sub">Summary of Claims and Actual Losses</h3>
+    <div class="table-wrap"><table data-testid="claim-table">
+      <thead><tr><th scope="col">Claim number</th><th scope="col">Injury type</th><th scope="col">Open/Closed</th><th scope="col" class="n">Actual Losses</th><th scope="col" class="n">Actual Primary</th><th scope="col" class="n">Actual Excess</th></tr></thead>
+      <tbody>${claimRows}</tbody>
+      <tfoot><tr class="totals" data-testid="totals-row" data-table="claims"><th scope="row">Total</th><td></td><td></td>${num(r.actualLosses, "al")}${num(r.actualPrimary, "ap")}${num(r.actualExcess, "ax")}</tr></tfoot>
+    </table></div>
+
+    <h3 class="sub">Experience Period Totals</h3>
+    <div class="table-wrap"><table data-testid="period-totals">
+      <thead><tr><th scope="col" class="n">Expected</th><th scope="col" class="n">Expected Primary</th><th scope="col" class="n">Expected Excess</th><th scope="col" class="n">Actual</th><th scope="col" class="n">Actual Primary</th><th scope="col" class="n">Actual Excess</th></tr></thead>
+      <tbody><tr><td class="n" data-testid="e">${money(r.expectedLosses)}</td><td class="n" data-testid="ep">${money(r.expectedPrimary)}</td><td class="n" data-testid="ee">${money(r.expectedExcess)}</td>
+        <td class="n" data-testid="al">${money(r.actualLosses)}</td><td class="n" data-testid="ap">${money(r.actualPrimary)}</td><td class="n" data-testid="ax">${money(r.actualExcess)}</td></tr></tbody>
+    </table></div>
+
+    <div class="mod-row">
+      <div class="mod-block" data-testid="experience-modification">
+        <span class="kpi-label">Experience Modification</span>
+        <div class="mod" data-testid="mod">${r.mod.toFixed(2)} <small>(${Math.round(r.mod * 100)}%)</small></div>
+      </div>
+      <div class="mod-block" data-testid="loss-free-rating">
+        <span class="kpi-label">Loss-Free Rating</span>
+        <div class="mod mod-sm" data-testid="loss-free">${r.lossFreeMod.toFixed(2)}</div>
+      </div>
+    </div>
     <p>
       <span class="pill ${r.eligible ? "ok" : "bad"}" data-testid="eligibility">${r.eligible ? "Eligible" : "Not eligible"}</span>
       ${r.capApplied ? `<span class="pill warn" data-testid="cap-applied">25-point cap applied</span>` : ""}
       <span class="note" data-testid="eligibility-reason">${esc(r.eligibilityReason)}</span>
     </p>
-    <dl>
-      <dt>Expected losses (E)</dt><dd data-testid="e">${money(r.expectedLosses)}</dd>
-      <dt>Primary threshold</dt><dd data-testid="pt">${money(r.primaryThreshold)}</dd>
-      <dt>Expected primary</dt><dd data-testid="ep">${money(r.expectedPrimary)}</dd>
-      <dt>Expected excess (Ee)</dt><dd data-testid="ee">${money(r.expectedExcess)}</dd>
-      <dt>Actual primary (Ap)</dt><dd data-testid="ap">${money(r.actualPrimary)}</dd>
-      <dt>Loss-free mod</dt><dd data-testid="loss-free">${r.lossFreeMod.toFixed(2)}</dd>
-      <dt>Unrounded mod</dt><dd data-testid="mod-unrounded">${esc(r.modUnrounded)}</dd>
-    </dl>
-    <h2>Classes</h2>
-    <table data-testid="class-table"><thead><tr><th>Class</th><th class="n">ELR</th><th class="n">Expected</th><th class="n">D-ratio</th><th class="n">Exp. primary</th></tr></thead><tbody>
-    ${r.classes.map((c) => `<tr><td>${c.classCode}</td><td class="n">${c.elr}</td><td class="n">${money(c.expectedLosses)}</td><td class="n">${c.dRatio}</td><td class="n">${money(c.expectedPrimary)}</td></tr>`).join("")}</tbody></table>
-    ${r.claims.length ? `<h2 class="spaced">Claims</h2>
-    <table data-testid="claim-table"><thead><tr><th>Claim</th><th class="n">Actual losses</th><th class="n">Actual primary</th><th>Rule</th></tr></thead><tbody>
-    ${r.claims.map((c) => `<tr data-testid="claim-result"><td>${esc(c.id)}</td><td class="n">${money(c.actualLosses)}</td><td class="n">${money(c.actualPrimary)}</td><td>${esc(c.rule)}</td></tr>`).join("")}</tbody></table>` : ""}
-    <p class="note">Mod rounding (2 decimals, half-up) is an assumption; the Plan text read so far does not state it.</p>`;
+    ${capNote}
+    <details class="explain" data-testid="calc-explain">
+      <summary>How this was calculated</summary>
+      <p>Experience Modification = (Actual Primary + Expected Excess) ÷ Expected<br>
+        = (${money(r.actualPrimary)} + ${money(r.expectedExcess)}) ÷ ${money(r.expectedLosses)} = <span data-testid="mod-before-cap">${esc(r.modBeforeCap)}</span></p>
+      ${r.capApplied ? `<p>Limited by the 25-point cap to <span data-testid="mod-unrounded">${esc(r.modUnrounded)}</span>.</p>` : `<p class="sr-only"><span data-testid="mod-unrounded">${esc(r.modUnrounded)}</span></p>`}
+      <p>Loss-Free Rating = Expected Excess ÷ Expected = ${money(r.expectedExcess)} ÷ ${money(r.expectedLosses)} = ${esc(r.lossFreeModUnrounded)}</p>
+      <p class="note">Published values are rounded to 2 decimals, half-up. That rounding rule is an assumption; the Plan pages read do not state it. Line amounts are rounded to cents, while totals come from unrounded values, so a total can differ from the sum of its lines by a cent.</p>
+    </details>`;
 }
 reset();
 
