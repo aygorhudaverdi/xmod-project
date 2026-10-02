@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X-Mod Lab</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --mute:#5d6b7c; --line:#dde2e8; --acc:#1f5fbf; --ok:#17794a; --bad:#b3261e; --warn:#8a5a00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#11151a; --card:#1a2028; --ink:#e7ecf2; --mute:#9aa7b6; --line:#2b3440; --acc:#6da2ff; --ok:#4cc38a; --bad:#ff7b72; --warn:#e3b341; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); background:var(--card); }
+  header h1 { margin:0; font-size:18px; } header p { margin:2px 0 0; color:var(--mute); font-size:13px; }
+  nav { display:flex; gap:4px; padding:0 24px; background:var(--card); border-bottom:1px solid var(--line); overflow-x:auto; }
+  nav button { background:none; border:0; padding:12px 14px; font:inherit; color:var(--mute); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  nav button[aria-selected=true] { color:var(--ink); border-bottom-color:var(--acc); font-weight:600; }
+  nav button:disabled { opacity:.5; cursor:not-allowed; }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  section[hidden] { display:none; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; } @media (max-width:860px){ .grid{grid-template-columns:1fr;} }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card h2 { margin:0 0 10px; font-size:15px; }
+  label { display:block; font-size:12px; color:var(--mute); margin-bottom:2px; }
+  input, select { width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); font:inherit; }
+  .row { display:grid; gap:8px; margin-bottom:8px; align-items:end; }
+  .row.payroll { grid-template-columns: 1fr 1.4fr auto; }
+  .row.claim { grid-template-columns: 1fr 1fr 1fr 1.2fr auto; }
+  .row.claim .opts { grid-column: 1 / -1; display:flex; gap:14px; flex-wrap:wrap; font-size:13px; color:var(--mute); }
+  .row.claim .opts label { display:inline-flex; gap:5px; align-items:center; margin:0; color:inherit; }
+  .row.claim .opts input { width:auto; }
+  .row.claim .net { max-width:160px; }
+  button.btn { padding:8px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; font:inherit; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
+  button.x { padding:6px 10px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .mod { font-size:44px; font-weight:700; line-height:1; } .mod small { font-size:14px; color:var(--mute); font-weight:400; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; border:1px solid var(--line); }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:13px; } th,td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); } td.n,th.n{text-align:right; font-variant-numeric:tabular-nums;}
+  dl { display:grid; grid-template-columns: auto 1fr; gap:4px 14px; margin:12px 0; font-size:14px; } dt{color:var(--mute);} dd{margin:0; text-align:right; font-variant-numeric:tabular-nums;}
+  .err { border:1px solid var(--bad); color:var(--bad); padding:10px; border-radius:8px; margin-top:10px; }
+  .story { border-left:3px solid var(--acc); padding:4px 12px; margin:10px 0; } .story h3{margin:0; font-size:14px;} .story p{margin:2px 0; color:var(--mute); font-size:13px;}
+  code { background:var(--bg); padding:1px 5px; border-radius:4px; font-size:12px; }
+  .note { color:var(--mute); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>X-Mod Lab</h1>
+  <p>Experience-modification calculator built from the California Experience Rating Plan (Sept 1, 2025). A test-practice environment — not an official WCIRB tool.</p>
+</header>
+<nav role="tablist" aria-label="Sections">
+  <button role="tab" id="tab-calc" aria-selected="true" aria-controls="panel-calc" data-testid="tab-calc">Calculator</button>
+  <button role="tab" id="tab-stories" aria-selected="false" aria-controls="panel-stories" data-testid="tab-stories">User stories &amp; criteria</button>
+  <button role="tab" id="tab-dash" aria-selected="false" aria-controls="panel-dash" data-testid="tab-dash" disabled title="Coming next: Prometheus + Grafana">Quality dashboard (soon)</button>
+</nav>
+<main>
+<section id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
+  <div class="grid">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Payroll by class</h2>
+        <div id="payroll-rows"></div>
+        <button class="btn" id="add-payroll" data-testid="add-payroll" type="button">+ Add class</button>
+        <datalist id="class-list"></datalist>
+        <p class="note">Class codes from Table I (e.g. 0005, 3634). Per-capita classes (7707, 7722, 8278, 8631) take units, not dollars.</p>
+      </div>
+      <div class="card">
+        <h2>Claims</h2>
+        <div id="claim-rows"></div>
+        <button class="btn" id="add-claim" data-testid="add-claim" type="button">+ Add claim</button>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>Risk status</h2>
+        <div class="opts" style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">
+          <label style="display:inline-flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" id="prior-rated" data-testid="prior-rated" style="width:auto"> Experience rated prior year</label>
+          <label style="display:inline-flex;gap:6px;align-items:center;color:inherit"><input type="checkbox" id="excl-unaudited" data-testid="excl-unaudited" style="width:auto"> Mod excludes unaudited payroll</label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="calculate" data-testid="calculate" type="button">Calculate X-Mod</button>
+          <button class="btn" id="load-sample" data-testid="load-sample" type="button">Load sample risk</button>
+          <button class="btn" id="reset" data-testid="reset" type="button">Reset</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" id="result" aria-live="polite" data-testid="result">
+        <h2>Result</h2>
+        <p class="note" id="placeholder">Enter payroll and claims, then calculate.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="panel-stories" role="tabpanel" aria-labelledby="tab-stories" hidden>
+  <div class="card">
+    <h2>User stories and acceptance criteria</h2>
+    <p class="note">Each story maps to automated tests (unit <code>tests/unit</code>, API <code>tests/api</code>, UI <code>tests/ui</code>). IDs appear in test titles.</p>
+    <div id="stories"></div>
+  </div>
+</section>
+
+<section id="panel-dash" role="tabpanel" aria-labelledby="tab-dash" hidden>
+  <div class="card"><h2>Quality dashboard</h2><p class="note">Planned: Prometheus + Grafana panels fed by <code>/metrics</code>.</p></div>
+</section>
+</main>
+<script src="app.js" type="module"></script>
+</body>
+</html>

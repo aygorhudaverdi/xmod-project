@@ -1,0 +1,8 @@
+{
+ "source": "California Workers' Compensation Experience Rating Plan\u20141995",
+ "effective": "2025-09-01",
+ "eligibility_threshold": 10800,
+ "maximum_loss_value": 175000,
+ "average_death_value": 175000,
+ "note": "Parsed from the PDF text layer; see tools/extract_tables.py"
+}

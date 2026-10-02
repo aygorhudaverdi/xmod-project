@@ -1,0 +1,27 @@
+{
+  "name": "xmod-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/server/server.ts",
+    "test:unit": "vitest run",
+    "test:api": "playwright test --project=api",
+    "test:ui": "playwright test --project=ui",
+    "test": "vitest run && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "fast-check": "^4.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0",
+    "express": "^5.2.1",
+    "prom-client": "^15.1.3"
+  }
+}
