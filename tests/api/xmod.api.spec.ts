@@ -127,4 +127,21 @@ test.describe("observability", () => {
     expect(text).toContain("xmod_calculations_total");
     expect(text).toContain("xmod_http_request_duration_seconds_bucket");
   });
+  test("latency histogram has bucket edges at the 200 ms and 500 ms targets", async ({ request }) => {
+    const text = await (await request.get("/metrics")).text();
+    expect(text).toMatch(/xmod_http_request_duration_seconds_bucket\{le="0\.2",/);
+    expect(text).toMatch(/xmod_http_request_duration_seconds_bucket\{le="0\.5",/);
+  });
+  test("unknown URLs share one 'unmatched' route label (bounded metric cardinality, DEF-003)", async ({ request }) => {
+    const probe = `/no-such-page-${Date.now()}`;
+    expect((await request.get(probe)).status()).toBe(404);
+    const text = await (await request.get("/metrics")).text();
+    expect(text).not.toContain(probe);
+    expect(text).toMatch(/route="unmatched",status="404"/);
+  });
+  test("body-parser errors are labelled with their endpoint, not as static files", async ({ request }) => {
+    await request.post("/api/xmod/calculate", { headers: { "content-type": "application/json" }, data: "{oops" });
+    const text = await (await request.get("/metrics")).text();
+    expect(text).toMatch(/method="POST",route="\/api\/xmod\/calculate",status="400"/);
+  });
 });

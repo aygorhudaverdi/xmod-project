@@ -1,0 +1,39 @@
+# Alert rules mirror the k6 thresholds in perf/PERFORMANCE_REQUIREMENTS.md (NFR-P1, NFR-P3),
+# so what is tested before release is what is watched afterwards. Project targets, not WCIRB's.
+groups:
+  - name: xmod-slo
+    rules:
+      - alert: XmodApiLatencyP95High
+        # Per API route; /metrics scrapes and static files are excluded. 0.2 is a histogram bucket edge,
+        # so this compares against a measured boundary rather than an interpolated one.
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, route) (rate(xmod_http_request_duration_seconds_bucket{route=~"/api/.*"}[5m]))
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency above 200 ms on {{ $labels.route }}"
+          description: "p95 has been {{ $value | humanizeDuration }} for 5 minutes (target NFR-P1: < 200 ms)."
+
+      - alert: XmodHigh5xxRate
+        expr: |
+          sum(rate(xmod_http_request_duration_seconds_count{status=~"5.."}[5m]))
+            /
+          sum(rate(xmod_http_request_duration_seconds_count[5m]))
+          > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 1% of requests are failing with 5xx"
+          description: "5xx ratio is {{ $value | humanizePercentage }} over the last 5 minutes (target NFR-P3: < 1%)."
+
+      - alert: XmodTargetDown
+        expr: up{job="xmod"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus cannot scrape the X-Mod Lab app"

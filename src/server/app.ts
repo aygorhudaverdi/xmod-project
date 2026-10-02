@@ -4,9 +4,20 @@ import { fileURLToPath } from "node:url";
 import pkg from "../../package.json" with { type: "json" };
 import { calculateMod, classCodes, classInfo, planInfo, ValidationError, type RatingInput } from "../engine/xmod.js";
 
+/**
+ * Bounded `route` label: the matched route pattern, or one of two fixed buckets. Using the raw path for
+ * unmatched requests let any client create a new time series per URL (DEF-003).
+ */
+const FIXED_API_PATHS = new Set(["/api/health", "/api/plan", "/api/classes", "/api/xmod/calculate", "/metrics"]);
+function routeLabel(req: express.Request, res: express.Response): string {
+  if (req.route?.path) return req.baseUrl + req.route.path;
+  // Body-parser errors (400 malformed JSON, 413) are raised before routing; keep them on their endpoint.
+  if (FIXED_API_PATHS.has(req.path)) return req.path;
+  return res.statusCode === 404 ? "unmatched" : "static";
+}
+
 export function createApp() {
   const app = express();
-  app.use(express.json({ limit: "256kb" }));
 
   // ---- Prometheus metrics (scraped later by Prometheus -> Grafana)
   const registry = new client.Registry();
@@ -14,7 +25,8 @@ export function createApp() {
   const httpDuration = new client.Histogram({
     name: "xmod_http_request_duration_seconds", help: "HTTP request latency",
     labelNames: ["method", "route", "status"], registers: [registry],
-    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+    // 0.2 and 0.5 are bucket edges so the p95 < 200 ms / p99 < 500 ms targets are measured, not interpolated.
+    buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2.5],
   });
   const calcTotal = new client.Counter({
     name: "xmod_calculations_total", help: "X-Mod calculations by outcome", labelNames: ["outcome"], registers: [registry],
@@ -26,9 +38,12 @@ export function createApp() {
 
   app.use((req, res, next) => {
     const end = httpDuration.startTimer();
-    res.on("finish", () => end({ method: req.method, route: req.route?.path ?? req.path, status: res.statusCode }));
+    res.on("finish", () => end({ method: req.method, route: routeLabel(req, res), status: res.statusCode }));
     next();
   });
+  // After the timer: a body-parser failure skips later middleware, so a parser placed first left
+  // 400/413 responses out of the metrics entirely (DEF-004).
+  app.use(express.json({ limit: "256kb" }));
 
   app.get("/api/health", (_req, res) => res.json({ status: "ok", version: pkg.version }));
   app.get("/api/plan", (_req, res) => res.json(planInfo()));

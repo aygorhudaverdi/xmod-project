@@ -54,6 +54,32 @@ Summaries go to `perf/results/` (gitignored). See [perf/README.md](perf/README.m
 results, and the last local run, and [perf/PERFORMANCE_REQUIREMENTS.md](perf/PERFORMANCE_REQUIREMENTS.md) for the NFRs
 (the project's own targets, not WCIRB's).
 
+## Observability (Prometheus + Grafana)
+
+```
+docker compose up -d --build                         # app :3000, Prometheus :9090, Grafana :3001
+docker compose --profile perf run --rm k6            # optional: run perf/load.js against the stack
+K6_SCRIPT=smoke.js docker compose --profile perf run --rm k6   # or a shorter run
+docker compose down -v
+```
+
+What to look at:
+
+- **Grafana** <http://localhost:3001> opens straight onto *X-Mod Lab: service health* (anonymous, read-only).
+  Panels: request rate by route; API latency p50/p95/p99 from histogram buckets (dashed line = 200 ms target);
+  error rate split into 4xx (expected: validation, 404, 413, 429) and 5xx (should be zero); calculations by
+  outcome; distribution of calculated mods; Node CPU, memory and event-loop lag; and k6 VUs and p95 while
+  the `perf` profile runs (k6 pushes its metrics into Prometheus with remote write).
+- **Prometheus** <http://localhost:9090>: *Status → Targets* should show `xmod` as UP, and *Alerts* lists the rules
+  from [`observability/alerts.yml`](observability/alerts.yml): p95 > 200 ms for 5 min per API route, 5xx ratio > 1% for 5 min,
+  and target down. The thresholds match the k6 NFRs, so what's tested before release is what's watched after.
+- Grafana's admin password defaults to Grafana's own `admin` for this local-only stack. Set `GRAFANA_ADMIN_PASSWORD`
+  in your shell to override it. No credentials are stored in the repo.
+
+The app's metrics come from [`src/server/app.ts`](src/server/app.ts): `xmod_http_request_duration_seconds{method,route,status}`
+(the `route` label is the matched route pattern, `unmatched` or `static`, so cardinality stays bounded),
+`xmod_calculations_total{outcome}`, `xmod_mod_value`, plus prom-client's default process metrics.
+
 ## Deploy
 
 The server runs the TypeScript sources through `tsx`, which is a runtime dependency. There is no build step, so
