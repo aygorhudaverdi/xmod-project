@@ -7,6 +7,20 @@ A test-practice web app around an experience-modification (X-Mod) engine, built 
 California Workers' Compensation Experience Rating Plan effective **Sept 1, 2025**.
 **Not an official WCIRB tool.** The numbers are for test practice and must not be used to rate a real risk.
 
+## What this demonstrates
+
+Each duty from the Quality Engineer job description, and where this repo covers it:
+
+| Duty | Where to look |
+|---|---|
+| **Build automated tests** (Playwright/Cypress/Selenium) | Playwright API and UI suites in [`tests/api`](tests/api) and [`tests/ui`](tests/ui): stable `data-testid` locators, web-first assertions, a fake clock for time-based UI, request mocking for UI states, an in-process app for isolated rate-limit tests. Engine unit and property tests in [`tests/unit`](tests/unit) (vitest + fast-check). |
+| **Analyze user stories into functional, integration, component and regression tests** | Stories US-01..US-09 with acceptance criteria in [`web/stories.js`](web/stories.js) (also shown in the app); [docs/TRACEABILITY.md](docs/TRACEABILITY.md) maps each story to unit (component), API and UI (integration) tests; [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md) covers levels and design techniques (boundary values, equivalence classes, decision tables, properties); every fixed defect has a named regression test. |
+| **Collaborate on defects** | [docs/DEFECTS.md](docs/DEFECTS.md): template plus 8 real defects with reproduction steps, expected/actual, root cause, fix and regression test, and a severity trend. |
+| **Validate non-functional requirements** (load, performance, security) | k6 smoke/load/stress in [`perf/`](perf) with NFRs in [PERFORMANCE_REQUIREMENTS.md](perf/PERFORMANCE_REQUIREMENTS.md) and recorded results; security headers, CSP, rate limiting, XSS and error-leak tests, and axe accessibility in [docs/SECURITY_AND_A11Y.md](docs/SECURITY_AND_A11Y.md). |
+| **Help design CI/CD with tests integrated** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml): type-check and traceability gate, unit on Node 20/22, Playwright with artifacts, dependency audit, k6 smoke, report published to Pages. [`Dockerfile`](Dockerfile), [`render.yaml`](render.yaml). |
+| **Test reports, dashboards and defect trends** | Playwright HTML report on GitHub Pages; the in-app **Quality dashboard** (live service stats and latest test results); Grafana dashboard and Prometheus alerts in [`observability/`](observability); defect trend in [docs/DEFECTS.md](docs/DEFECTS.md#defect-trend); traceability summary in each CI run. |
+| **Continuously improve the test process** | [docs/TEST_PROCESS_IMPROVEMENTS.md](docs/TEST_PROCESS_IMPROVEMENTS.md): what the tests missed first, how each gap was closed (layered negative tests, metric-behavior tests, a11y in both themes, typecheck, traceability gate), and next steps. |
+
 ## Run locally
 
 Requires Node 20.19+ (CI runs 20 and 22).
@@ -39,6 +53,7 @@ Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · 
 | [docs/TEST_PROCESS_IMPROVEMENTS.md](docs/TEST_PROCESS_IMPROVEMENTS.md) | Retrospective: what the tests missed first and how the process was tightened |
 | [docs/SECURITY_AND_A11Y.md](docs/SECURITY_AND_A11Y.md) | Security controls and tests, accessibility findings and fixes, known gaps |
 | [perf/PERFORMANCE_REQUIREMENTS.md](perf/PERFORMANCE_REQUIREMENTS.md) | NFRs behind the k6 thresholds and the alert rules |
+| [docs/ENGINE_PERIOD_RULES.md](docs/ENGINE_PERIOD_RULES.md) | Experience period and rating effective date: Plan citations, assumptions A1–A6, API examples |
 
 ## In-app quality dashboard
 
@@ -74,7 +89,7 @@ After that, the latest report is at <https://aygorhudaverdi.github.io/xmod-proje
 ## Performance (k6)
 
 ```
-npm start
+RATE_LIMIT_MAX=1000000 npm start   # the default 120/min per IP would answer k6 with 429s
 k6 run perf/smoke.js     # 30 s, 1 VU, all endpoints; runs in CI (perf-smoke job)
 k6 run perf/load.js      # 0 → 50 VUs over 2 min, hold 3 min, realistic payload mix (~5% invalid → 422)
 k6 run perf/stress.js    # stepped arrival rate to find the knee
@@ -143,7 +158,10 @@ Free instances sleep when idle, so the first request after a pause is slow. Don'
 
 `GET /api/health` returns `{ "status": "ok", "version": "<package.json version>" }`, so you can see which build is live.
 
-## Assumptions the Plan text does not settle (all in `RatingPolicy`, covered by tests)
+## Assumptions the Plan text does not settle (covered by tests)
+
+1–2 are `RatingPolicy` parameters; 3–4 are fixed behavior documented on `RatingPolicy` in `src/engine/xmod.ts`; 5 lives in `src/engine/period.ts`.
+
 1. Published mod = 2-decimal factor, round-half-up (rounding rule not found in the pages read).
 2. Expected losses are rounded to whole dollars before the Table II band lookup.
 3. A multi-person accident counts as one entry; the 25-point cap counts claims with primary > 0 individually.
