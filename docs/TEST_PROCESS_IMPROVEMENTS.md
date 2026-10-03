@@ -15,6 +15,7 @@ time. Defect IDs refer to [DEFECTS.md](DEFECTS.md).
 | 6 | Unlabeled inputs and dark-mode contrast (DEF-007) | UI tests used `data-testid` locators, which pass whether or not a control has an accessible name, and nothing ran in dark mode. | axe runs on every tab and state in **both color schemes** with zero violations allowed. Keyboard behavior has its own test. |
 | 7 | Traceability overstated coverage (DEF-008) | The report generator itself had no tests. | Report and tool code get unit tests like product code. The generated matrix is reviewed, and CI checks it is up to date. |
 | 8 | A type error in new code (`stats.ts`) went unnoticed | There was no `tsconfig.json` and no type-check; `tsx` and Vite strip types without checking them. | `tsconfig.json` (strict) plus `npm run typecheck` in the CI `checks` job. |
+| 9 | A failing test went unreported for three commits (DEF-010) | Local checks read `... | tail -1`; Playwright prints the failure above the final "N passed" line. The expected value was also hand-computed wrongly. | Gate on the exit code and on the JSON reporter's `stats.unexpected === 0`, never on truncated output. Derive expected numbers from a second source (the engine run or exact arithmetic) before hard-coding a string. CI stays the backstop: it caught this one. |
 
 ## Process changes
 

@@ -212,6 +212,6 @@ test.describe("US-07 worksheet breakdown in the API response", () => {
     const b = await (await calc(request, risk([{ id: "a", indemnity: 20_000, medical: 0 }]))).json();
     expect(b).toMatchObject({ expectedLosses: 20_200, primaryThreshold: 8_500, expectedExcess: 15_634.8, actualPrimary: 8_250, mod: 1.02, capApplied: true });
     expect(b.modBeforeCap).toBe("1.18241584158"); // (8,250 + 15,634.80) / 20,200
-    expect(b.modUnrounded).toBe("1.02400990099");
+    expect(b.modUnrounded).toBe("1.024"); // loss-free 15,634.80 / 20,200 = 0.774 exactly, + 0.25
   });
 });

@@ -209,6 +209,30 @@ behavior and record it as assumption 5 in `RatingPolicy`. Either way, add a unit
 **Regression test:** to be written once the rule is decided. `tests/ui/worksheet.spec.ts` currently pins only the
 contract-medical line value (Ap 113,000), not the cap.
 
+### DEF-010: A failing API test was reported as green for three commits (verification masked the failure)
+| Field | Value |
+|---|---|
+| Severity | Major (process: three commits were reported "all suites green" while one test failed) |
+| Found by | GitHub Actions CI: the e2e job failed on `968ef3b`; the job's annotations named the test |
+| Component | test process (local verification), plus a wrong expected value in a test |
+| Status | Fixed (this commit) |
+
+**Steps to reproduce:**
+1. Check out `e115240`, `968ef3b` or `c16e787` and run `npx playwright test 2>&1 | tail -1`.
+
+**Expected:** the command shows the failure, or the check stops on a non-zero exit code.
+**Actual:** `tail -1` prints only the last summary line, "143 passed". Playwright prints "1 failed" and the failing
+title *above* that line, so the failure never showed. The test was
+`tests/api/xmod.api.spec.ts` › `US-07 adding the breakdown did not change the reference results`.
+**Root cause:** two mistakes together. (1) The test's expected `modUnrounded` was hand-computed wrongly as
+`"1.02400990099"`. The loss-free rating is 15,634.80 / 20,200 = 0.774 **exactly**, so the capped value is 1.024, which
+is what the engine returned; the engine was right. (2) Local verification read the tail of the console output
+instead of the exit code or the reporter's statistics.
+**Fix:** expected value corrected to `"1.024"`. Local verification now reads the exit code and the JSON reporter's
+`stats` (`expected`, `unexpected`, `flaky`) and never a truncated console log. CI already did this, which is why it
+caught the failure.
+**Regression test:** the corrected test itself. The process change is recorded in TEST_PROCESS_IMPROVEMENTS.md (#9).
+
 ## Defect trend
 
 | Found during | Defects | By severity | How found |
@@ -219,7 +243,8 @@ contract-medical line value (Ap 113,000), not the cap.
 | Security and a11y (Task 6) | 3 | Major 2, Minor 1 | Exploratory negative testing, first axe run |
 | Test documentation (Task 7) | 1 | Minor 1 | Review of generated report |
 | Worksheet redesign | 1 (open) | Major 1, if confirmed | Deriving expected values from the Plan text before writing tests |
-| **Total** | **9** | **Critical 0, Major 7, Minor 2** | 8 closed, each with a regression test; 1 open pending a rules decision |
+| Worksheet redesign (process) | 1 | Major 1 | CI caught a failure that local verification had masked |
+| **Total** | **10** | **Critical 0, Major 8, Minor 2** | 9 closed, each with a regression test; 1 open pending a rules decision |
 
 Most defects sat on **contract edges and error paths** (DEF-001, 004, 005, 006) or in **non-functional and
 tooling layers** (002, 003, 007, 008). None came from the rating math, which example and property tests had already
