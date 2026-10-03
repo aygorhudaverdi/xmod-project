@@ -19,6 +19,7 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | US-07 | Result laid out like the experience rating worksheet | 4 | 3 | 13 | 20 |
 | US-08 | Quality dashboard | 14 | 3 | 10 | 27 |
 | US-09 | Experience period and rating effective date | 24 | 8 | 0 | 32 |
+| US-10 | Reference tables: Table II primary thresholds | 2 | 7 | 7 | 16 |
 
 ## US-01: Calculate a mod from a simple worksheet entry
 
@@ -341,3 +342,35 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | api | `tests/api/period.api.spec.ts` | US-09 lapse of more than a year resets the date (V.1.b) |
 | api | `tests/api/period.api.spec.ts` | US-09 short-term policy does not establish a date (V.1.c) |
 | api | `tests/api/period.api.spec.ts` | US-09 cancellation outside the policy term -> 422 BAD_POLICY_TERM |
+
+## US-10: Reference tables: Table II primary thresholds
+
+> As an underwriter I want to see Table II and look up the primary threshold for any expected losses, so I can check the band a rating used.
+
+**Acceptance criteria**
+
+1. The Reference tables tab lists all 92 Table II bands (from, to, primary threshold; the last band reads 'and over') with the Maximum Loss Value and Average Death Value
+2. Typing total expected losses looks up the threshold (rounded to whole dollars, the same rule the rating uses) and highlights and scrolls to the matching band
+3. Invalid amounts show an inline message; the API answers 422 BAD_EXPECTED
+4. The Primary Threshold on the Calculator result links to this tab with the band it used highlighted
+
+**Tests**
+
+| Level | File | Test |
+|---|---|---|
+| unit | `tests/unit/table2.test.ts` | US-10 table2Bands is a copy: changing it does not change the engine's data |
+| unit | `tests/unit/table2.test.ts` | US-10 property: the lookup's band always contains the rounded value and matches primaryThresholdFor |
+| api | `tests/api/table2.api.spec.ts` | US-10 returns all 92 contiguous bands from 0 to 'and over', thresholds 4,500 to 75,000 |
+| api | `tests/api/table2.api.spec.ts` | US-10 ${id} expected ${expected} -> threshold ${threshold} |
+| api | `tests/api/table2.api.spec.ts` | US-10 E-09 47,636.59 rounds to 47,637 and falls in 46,360-50,076 -> 13,000 |
+| api | `tests/api/table2.api.spec.ts` | US-10 rounding is half-up to whole dollars at a band edge (7,248.49 -> 4,500; 7,248.50 -> 5,000) |
+| api | `tests/api/table2.api.spec.ts` | US-10 the open-ended last band reports max null |
+| api | `tests/api/table2.api.spec.ts` | US-10 ${label} expected -> 422 BAD_EXPECTED |
+| api | `tests/api/table2.api.spec.ts` | US-10 lookup agrees with the threshold the calculator uses |
+| ui | `tests/ui/a11y.spec.ts` | US-10 reference tables tab with a highlighted band and an inline error (${scheme}) |
+| ui | `tests/ui/reference.spec.ts` | US-10 the tab lists all 92 bands, the constants, and 'and over' on the last row |
+| ui | `tests/ui/reference.spec.ts` | US-10 E-09 typing 47636.59 highlights the 46,360-50,076 band and shows 13,000 |
+| ui | `tests/ui/reference.spec.ts` | US-10 E-05 typing 7248 then 7249 moves the highlight to the next band |
+| ui | `tests/ui/reference.spec.ts` | US-10 E-10 invalid input shows an inline message, clears the highlight, and raises no dialog |
+| ui | `tests/ui/reference.spec.ts` | US-10 the Calculator's Primary Threshold link opens the tab on the band it used |
+| ui | `tests/ui/reference.spec.ts` | US-10 at 375 px the table scrolls inside its container, not the page |

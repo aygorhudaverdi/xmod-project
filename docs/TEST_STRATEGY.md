@@ -43,7 +43,7 @@ were a real product, because the techniques transfer.
 | Performance | k6 | `perf/` | NFR-P1..P6: latency percentiles, failure rate, check rate at design load; capacity knee | Production capacity (single local instance) |
 | Regression | All of the above in CI | `.github/workflows/ci.yml` | Every push and PR re-runs unit, API, UI, a11y and perf smoke; each fixed defect has a named regression test (`docs/DEFECTS.md`) | |
 
-Story IDs (`US-01`..`US-09`) appear in test titles. `npm run trace` builds `docs/TRACEABILITY.md` from them and
+Story IDs (`US-01`..`US-10`) appear in test titles. `npm run trace` builds `docs/TRACEABILITY.md` from them and
 fails CI if any story has no test.
 
 ## 3. Test design techniques used

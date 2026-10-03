@@ -44,4 +44,10 @@ export const STORIES = [
       "Rating effective date is 12 months after the preceding policy's effective date; a WCIRB-established date governs; a lapse of more than one year resets it (Sec V R1)",
       "Policies of 3 months or less, or that incept and expire between rating effective dates, do not establish a rating effective date (Sec V R1(c))",
       "Every interpretation the Plan does not settle is returned with the result and documented"] },
+  { id: "US-10", title: "Reference tables: Table II primary thresholds",
+    story: "As an underwriter I want to see Table II and look up the primary threshold for any expected losses, so I can check the band a rating used.",
+    ac: ["The Reference tables tab lists all 92 Table II bands (from, to, primary threshold; the last band reads 'and over') with the Maximum Loss Value and Average Death Value",
+      "Typing total expected losses looks up the threshold (rounded to whole dollars, the same rule the rating uses) and highlights and scrolls to the matching band",
+      "Invalid amounts show an inline message; the API answers 422 BAD_EXPECTED",
+      "The Primary Threshold on the Calculator result links to this tab with the band it used highlighted"] },
 ];

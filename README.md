@@ -48,12 +48,21 @@ Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · 
 | Document | What it covers |
 |---|---|
 | [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md) | Scope, test levels and what each one proves, design techniques, entry/exit criteria, risks, assumptions |
+| [docs/TEST_CASES.md](docs/TEST_CASES.md) | E-series test cases (expected losses, Table II) with an on-screen route for manual testing |
 | [docs/TRACEABILITY.md](docs/TRACEABILITY.md) | Story → acceptance criteria → tests, generated from test titles by `npm run trace` |
 | [docs/DEFECTS.md](docs/DEFECTS.md) | Defect template, every defect found (steps, expected/actual, root cause, fix, regression test), and the trend |
 | [docs/TEST_PROCESS_IMPROVEMENTS.md](docs/TEST_PROCESS_IMPROVEMENTS.md) | Retrospective: what the tests missed first and how the process was tightened |
 | [docs/SECURITY_AND_A11Y.md](docs/SECURITY_AND_A11Y.md) | Security controls and tests, accessibility findings and fixes, known gaps |
 | [perf/PERFORMANCE_REQUIREMENTS.md](perf/PERFORMANCE_REQUIREMENTS.md) | NFRs behind the k6 thresholds and the alert rules |
 | [docs/ENGINE_PERIOD_RULES.md](docs/ENGINE_PERIOD_RULES.md) | Experience period and rating effective date: Plan citations, assumptions A1–A6, API examples |
+
+## Reference tables
+
+The **Reference tables** tab shows Table II (all 92 primary-threshold bands, plus the Maximum Loss Value and Average
+Death Value). Type total expected losses and the matching band is highlighted. Clicking the Primary Threshold on
+a Calculator result opens this tab on the band the calculation used. API: `GET /api/table2` and
+`GET /api/table2/lookup?expected=47636.59`, which returns `{ expected, roundedExpected, threshold, band }`, or
+422 `BAD_EXPECTED` for a missing, negative or non-numeric amount.
 
 ## In-app quality dashboard
 

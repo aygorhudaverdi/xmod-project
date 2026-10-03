@@ -129,7 +129,7 @@ interface ClassRow { elr: string; per_unit_basis: boolean; d_ratios: string[] }
 const T1 = table1 as unknown as { thresholds: number[]; classes: Record<string, ClassRow> };
 const PLAN = constants as { effective: string; eligibility_threshold: number; maximum_loss_value: number; average_death_value: number };
 
-interface Band { min: number; max: number | null; threshold: number }
+export interface Band { min: number; max: number | null; threshold: number }
 function loadBands(): Band[] {
   const csv = readFileSync(fileURLToPath(new URL("../../data/table2_primary_thresholds.csv", import.meta.url)), "utf8");
   return csv.trim().split("\n").slice(1).map((l) => {
@@ -152,6 +152,20 @@ export function primaryThresholdFor(expectedLosses: Decimal, policy = DEFAULT_PO
     if (e.lte(b.max ?? Infinity)) return b.threshold;
   }
   throw new Error("unreachable: last band is open-ended");
+}
+
+/** Table II as loaded (copies, so callers cannot change the engine's data). */
+export const table2Bands = (): Band[] => BANDS.map((b) => ({ ...b }));
+
+/**
+ * Table II lookup for display: the same rounding and the same function the rating uses (primaryThresholdFor),
+ * plus the band that contains the rounded value.
+ */
+export function lookupPrimaryThreshold(expected: Decimal, policy = DEFAULT_POLICY) {
+  const rounded = policy.roundExpectedForBand ? expected.toDecimalPlaces(0) : expected.floor();
+  const threshold = primaryThresholdFor(expected, policy);
+  const band = BANDS.find((b) => rounded.gte(b.min) && (b.max === null || rounded.lte(b.max)))!;
+  return { roundedExpected: rounded.toNumber(), threshold, band: { min: band.min, max: band.max } };
 }
 
 const D = (n: number | string) => new Decimal(String(n));

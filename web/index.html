@@ -15,6 +15,7 @@
   <button role="tab" id="tab-calc" aria-selected="true" aria-controls="panel-calc" data-testid="tab-calc" tabindex="0">Calculator</button>
   <button role="tab" id="tab-stories" aria-selected="false" aria-controls="panel-stories" data-testid="tab-stories" tabindex="-1">User stories &amp; criteria</button>
   <button role="tab" id="tab-dash" aria-selected="false" aria-controls="panel-dash" data-testid="tab-dash" tabindex="-1">Quality dashboard</button>
+  <button role="tab" id="tab-reference" aria-selected="false" aria-controls="panel-reference" data-testid="tab-reference" tabindex="-1">Reference tables</button>
 </div></nav>
 <main>
 <section id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
@@ -101,6 +102,27 @@
   <div class="card card-gap" data-testid="test-results">
     <h2>Test results</h2>
     <div id="test-results-body"><p class="note">Loading…</p></div>
+  </div>
+</section>
+<section id="panel-reference" role="tabpanel" aria-labelledby="tab-reference" hidden>
+  <div class="card">
+    <h2 id="table2-title">Table II – Primary thresholds</h2>
+    <p data-testid="table2-constants">Maximum Loss Value: <b id="mlv" data-testid="mlv">$175,000</b> · Average Death Value: <b id="adv" data-testid="adv">$175,000</b></p>
+    <div class="lookup">
+      <label for="lookup-input">Total expected losses ($)</label>
+      <input id="lookup-input" data-testid="lookup-input" inputmode="decimal" autocomplete="off" placeholder="e.g. 47,636.59" aria-describedby="lookup-message">
+      <p class="lookup-result" data-testid="lookup-result" role="status" aria-live="polite"></p>
+      <p class="lookup-message" id="lookup-message" data-testid="lookup-message" aria-live="polite"></p>
+    </div>
+    <p class="note">How the threshold is found: Expected Losses E = Σ payroll × Expected Loss Rate ÷ 100 (per-capita classes: units × rate),
+      rounded to whole dollars, then looked up in this table. The Primary Threshold that results selects the D-ratio column in Table I,
+      and it caps each claim's Actual Primary Losses at threshold − $250. Rounding E before the lookup is this project's assumption.</p>
+    <div class="table-wrap table2-wrap" tabindex="0" role="region" aria-labelledby="table2-title">
+      <table data-testid="table2">
+        <thead><tr><th scope="col" class="n">Expected losses from ($)</th><th scope="col" class="n">to ($)</th><th scope="col" class="n">Primary threshold ($)</th></tr></thead>
+        <tbody id="table2-body"><tr><td colspan="3" class="note">Loading…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </section>
 </main>

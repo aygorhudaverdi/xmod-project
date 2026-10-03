@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
-import { calculateMod, classCodes, classInfo, planInfo, ValidationError, type RatingInput } from "../engine/xmod.js";
+import Decimal from "decimal.js";
+import {
+  calculateMod, classCodes, classInfo, lookupPrimaryThreshold, planInfo, table2Bands, ValidationError, type RatingInput,
+} from "../engine/xmod.js";
 import { ratingEffectiveDate, selectExperience } from "../engine/period.js";
 import { summarizeMetrics, summarizePlaywright, type PromMetric } from "./stats.js";
 
@@ -94,6 +97,20 @@ export function createApp(options: AppOptions = {}) {
     const list = classCodes().filter((c) => c.startsWith(q)).slice(0, 50).map((c) => classInfo(c));
     res.json(list);
   });
+  // ---- Table II (primary thresholds), straight from the engine's loaded bands
+  app.get("/api/table2", (_req, res) => {
+    const plan = planInfo();
+    res.json({ maximumLossValue: plan.maximum_loss_value, averageDeathValue: plan.average_death_value, bands: table2Bands() });
+  });
+  app.get("/api/table2/lookup", (req, res) => {
+    const raw = req.query.expected;
+    // Plain non-negative decimals only: rejects "", "-1", "abc", "1e5", "0x10", "Infinity" and repeated parameters.
+    if (typeof raw !== "string" || raw.length > 20 || !/^\d+(\.\d+)?$/.test(raw))
+      return apiError(res, 422, "BAD_EXPECTED", "expected must be a non-negative number of dollars, e.g. ?expected=47636.59");
+    const expected = new Decimal(raw);
+    res.json({ expected: expected.toNumber(), ...lookupPrimaryThreshold(expected) });
+  });
+
   app.get("/api/classes/:code", (req, res) => {
     const info = classInfo(req.params.code);
     info ? res.json(info) : apiError(res, 404, "UNKNOWN_CLASS", `Unknown class code ${req.params.code}`);

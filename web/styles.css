@@ -86,3 +86,19 @@ details.explain { margin-top:10px; border-top:1px solid var(--line); padding-top
 details.explain summary { cursor:pointer; font-weight:600; }
 .ap-cell { white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--mute); min-width:9em; }
 .limit-note { color:var(--warn); }
+
+/* ---- reference tables */
+.lookup { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:8px 0 6px; }
+.lookup label { margin:0; font-size:13px; color:var(--ink); }
+.lookup input { width:14em; }
+.lookup-result { margin:0; font-weight:600; }
+.lookup-message { margin:0; color:var(--bad); font-size:13px; }
+.lookup-message:empty, .lookup-result:empty { display:none; }
+.table2-wrap { max-height:60vh; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+.table2-wrap thead th { position:sticky; top:0; background:var(--card); }
+.table2-wrap table { min-width:20em; }
+tr[aria-current="true"] th, tr[aria-current="true"] td { background:color-mix(in srgb, var(--acc) 18%, var(--card)); font-weight:700; }
+tr[aria-current="true"] th:first-child { box-shadow:inset 4px 0 0 var(--acc); }
+a.pt-link { color:inherit; text-decoration:underline; text-decoration-color:var(--acc); text-underline-offset:3px; }
+.table2-wrap table { border-collapse:separate; border-spacing:0; }
+.table2-wrap thead th { z-index:1; box-shadow:0 1px 0 var(--line); }

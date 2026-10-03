@@ -69,6 +69,18 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
         expect(await page.locator("#panel-calc td[scope], #panel-calc thead td").count()).toBe(0);
       });
 
+      test(`US-10 reference tables tab with a highlighted band and an inline error (${scheme})`, async ({ page }) => {
+        await page.goto("/");
+        await page.getByTestId("tab-reference").click();
+        await page.getByTestId("lookup-input").fill("47636.59");
+        await expect(page.locator('[data-testid="table2-row"][aria-current="true"]')).toHaveCount(1);
+        expect(await violations(page)).toEqual([]);
+        await page.getByTestId("lookup-input").fill("abc");
+        await expect(page.getByTestId("lookup-message")).not.toBeEmpty();
+        expect(await violations(page)).toEqual([]);
+        expect(await page.locator("#panel-reference th:not([scope])").count()).toBe(0);
+      });
+
       test(`stories tab (${scheme})`, async ({ page }) => {
         await page.goto("/");
         await page.getByTestId("tab-stories").click();

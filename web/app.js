@@ -4,7 +4,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const money = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // ---- tabs
-const tabs = [["calc", "panel-calc"], ["stories", "panel-stories"], ["dash", "panel-dash"]];
+const tabs = [["calc", "panel-calc"], ["stories", "panel-stories"], ["dash", "panel-dash"], ["reference", "panel-reference"]];
 function selectTab(k) {
   for (const [k2, p2] of tabs) {
     const t = $(`#tab-${k2}`);
@@ -13,6 +13,7 @@ function selectTab(k) {
     $(`#${p2}`).hidden = k2 !== k;
   }
   dashboard.setActive(k === "dash");
+  if (k === "reference") reference.load();
 }
 for (const [k] of tabs) {
   $(`#tab-${k}`).addEventListener("click", () => selectTab(k));
@@ -350,7 +351,7 @@ function render(box, r, { lines, meta, heading }) {
         <dt>Effective date</dt><dd data-testid="ws-effective">${dash(fmtDate(heading.effective))}</dd>
         <dt>Issue date</dt><dd data-testid="ws-issued">${dash(fmtDate(heading.issued))}</dd>
       </dl>
-      <div class="pt-box" data-testid="primary-threshold"><span class="kpi-label">Primary Threshold</span><span class="kpi-value" data-testid="pt">${money(r.primaryThreshold)}</span></div>
+      <div class="pt-box" data-testid="primary-threshold"><span class="kpi-label">Primary Threshold</span><a class="kpi-value pt-link" href="#table2" data-testid="pt-link" data-threshold="${r.primaryThreshold}" data-expected="${r.expectedLosses}" title="Show this band in Table II"><span data-testid="pt">${money(r.primaryThreshold)}</span></a></div>
     </div>
 
     <h3 class="sub">Summary of Payroll and Expected Losses</h3>
@@ -504,3 +505,84 @@ function createDashboard() {
   return { setActive(on) { if (on !== active) { active = on; schedule(); } } };
 }
 const dashboard = createDashboard();
+
+// ---- reference tables: Table II
+const whole = (n) => Number(n).toLocaleString("en-US");
+function createReference() {
+  let loaded = null; // promise, so concurrent callers share one fetch
+  let timer = null;
+  let seqNo = 0;
+
+  function load() {
+    loaded ??= fetch("/api/table2").then((r) => r.json()).then((t) => {
+      $("#mlv").textContent = `$${whole(t.maximumLossValue)}`;
+      $("#adv").textContent = `$${whole(t.averageDeathValue)}`;
+      $("#table2-body").innerHTML = t.bands.map((b) => `
+        <tr data-testid="table2-row" data-threshold="${b.threshold}" data-min="${b.min}">
+          <th scope="row" class="n">${whole(b.min)}</th><td class="n">${b.max === null ? "and over" : whole(b.max)}</td><td class="n">${whole(b.threshold)}</td></tr>`).join("");
+    }).catch((err) => {
+      console.error("Table II failed to load", err); // network or code error: keep it visible to developers
+      loaded = null;
+      $("#table2-body").innerHTML = `<tr><td colspan="3" class="note">Could not load Table II.</td></tr>`;
+    });
+    return loaded;
+  }
+
+  function highlight(threshold) {
+    let current = null;
+    for (const tr of document.querySelectorAll("#table2-body tr[data-testid=table2-row]")) {
+      const on = Number(tr.dataset.threshold) === threshold;
+      if (on) { tr.setAttribute("aria-current", "true"); current = tr; } else tr.removeAttribute("aria-current");
+    }
+    current?.scrollIntoView({ block: "center" });
+  }
+  const clear = () => {
+    highlight(NaN);
+    $("[data-testid=lookup-result]").textContent = "";
+    $("[data-testid=lookup-message]").textContent = "";
+  };
+
+  async function lookup() {
+    const raw = $("#lookup-input").value.trim().replace(/[$,\s]/g, ""); // accept "$47,636.59"
+    if (!raw) return clear();
+    const mine = ++seqNo;
+    let res, body;
+    try {
+      [res] = await Promise.all([fetch(`/api/table2/lookup?expected=${encodeURIComponent(raw)}`), load()]);
+      body = await res.json();
+    } catch { res = null; }
+    if (mine !== seqNo) return; // a newer keystroke won
+    if (!res?.ok) {
+      highlight(NaN);
+      $("[data-testid=lookup-result]").textContent = "";
+      $("[data-testid=lookup-message]").textContent = res ? "Enter a dollar amount of 0 or more, for example 47636.59." : "Could not reach the server.";
+      return;
+    }
+    $("[data-testid=lookup-message]").textContent = "";
+    const to = body.band.max === null ? "and over" : `to $${whole(body.band.max)}`;
+    $("[data-testid=lookup-result]").textContent =
+      `Primary threshold $${whole(body.threshold)}: rounded expected losses $${whole(body.roundedExpected)} fall in the band $${whole(body.band.min)} ${to}.`;
+    highlight(body.threshold);
+  }
+  $("#lookup-input").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(lookup, 200); });
+
+  /** From the Calculator: open the tab on the band the calculation used (the engine's threshold, not a re-lookup). */
+  async function showBand(threshold, expected) {
+    selectTab("reference");
+    await load();
+    ++seqNo; clearTimeout(timer); // cancel any pending typed lookup
+    $("#lookup-input").value = expected;
+    $("[data-testid=lookup-message]").textContent = "";
+    $("[data-testid=lookup-result]").textContent = `Primary threshold $${whole(threshold)}: used by your calculation (expected losses $${money(expected)}).`;
+    highlight(threshold);
+    $("#tab-reference").focus();
+  }
+  return { load, showBand };
+}
+const reference = createReference();
+$("#result").addEventListener("click", (e) => {
+  const a = e.target.closest("a.pt-link");
+  if (!a) return;
+  e.preventDefault();
+  reference.showBand(Number(a.dataset.threshold), Number(a.dataset.expected));
+});

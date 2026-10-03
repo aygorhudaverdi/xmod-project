@@ -114,7 +114,7 @@ test("add and remove rows; reset clears results", async ({ page }) => {
 
 test("stories tab lists every story with acceptance criteria", async ({ page }) => {
   await page.getByTestId("tab-stories").click();
-  for (const id of ["US-01", "US-02", "US-03", "US-04", "US-05", "US-06", "US-07", "US-08", "US-09"]) {
+  for (const id of ["US-01", "US-02", "US-03", "US-04", "US-05", "US-06", "US-07", "US-08", "US-09", "US-10"]) {
     await expect(page.getByTestId(`story-${id}`)).toBeVisible();
   }
   await expect(page.locator("#panel-calc")).toBeHidden();
@@ -127,13 +127,16 @@ test("tabs follow the WAI-ARIA keyboard pattern: arrows, Home/End, roving tabind
   await expect(page.getByTestId("tab-stories")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("tab-stories")).toHaveAttribute("tabindex", "0");
   await expect(page.getByTestId("tab-calc")).toHaveAttribute("tabindex", "-1");
-  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowRight");
   await expect(page.getByTestId("tab-dash")).toBeFocused();
   await expect(page.getByTestId("dash-stats")).toBeVisible();
+  await page.keyboard.press("End");
+  await expect(page.getByTestId("tab-reference")).toBeFocused();
+  await expect(page.getByTestId("table2")).toBeVisible();
   await page.keyboard.press("ArrowRight"); // wraps around
   await expect(page.getByTestId("tab-calc")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");
-  await expect(page.getByTestId("tab-dash")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("tab-reference")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Home");
   await expect(page.getByTestId("tab-calc")).toBeFocused();
   await expect(page.locator("#panel-calc")).toBeVisible();
