@@ -58,7 +58,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test
+      # api + ui only: agent-generated tests have their own job, and the seed project is for local agent runs.
+      - run: npx playwright test --project=api --project=ui
       - name: Upload Playwright HTML report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v6
@@ -78,6 +79,30 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: playwright-report/
+
+  agent-tests:
+    name: Agent-generated tests (human-approved)
+    # Runs only tests a human approved and merged into tests/agent/. The planner, generator and healer agents
+    # never run in CI (docs/AGENT_TESTING.md).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:agent
+      - name: Upload agent test report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: agent-test-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
 
   audit:
     name: Dependency audit (non-blocking)

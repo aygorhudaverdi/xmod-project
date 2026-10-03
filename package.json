@@ -10,7 +10,8 @@
     "test:ui": "playwright test --project=ui",
     "test": "vitest run && playwright test",
     "trace": "tsx tools/traceability.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test:agent": "playwright test --project=agent --pass-with-no-tests"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

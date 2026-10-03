@@ -48,6 +48,7 @@ Layout: `src/engine` (pure engine) · `src/server` (Express API, `/metrics`) · 
 | Document | What it covers |
 |---|---|
 | [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md) | Scope, test levels and what each one proves, design techniques, entry/exit criteria, risks, assumptions |
+| [docs/AGENT_TESTING.md](docs/AGENT_TESTING.md) | Planner / Generator / Healer agents (Playwright MCP) with three human approval gates; expected values come from outside the app |
 | [docs/TEST_CASES.md](docs/TEST_CASES.md) | E-series test cases (expected losses, Table II) with an on-screen route for manual testing |
 | [docs/TRACEABILITY.md](docs/TRACEABILITY.md) | Story → acceptance criteria → tests, generated from test titles by `npm run trace` |
 | [docs/DEFECTS.md](docs/DEFECTS.md) | Defect template, every defect found (steps, expected/actual, root cause, fix, regression test), and the trend |
@@ -87,8 +88,9 @@ with `?grafana=https://your-grafana`, which is remembered.
 |---|---|---|
 | `checks` | strict type-check, traceability gate (`npm run trace -- --check`); matrix summary in the job summary | `npm run typecheck && npm run trace -- --check` |
 | `unit` (Node 20 and 22) | `npm ci`, `npm run test:unit` | `npm run test:unit` |
-| `e2e` | `npx playwright install --with-deps chromium`, `npx playwright test`; uploads `playwright-report/` and `test-results/` as artifacts even when tests fail | `npx playwright test` |
+| `e2e` | `npx playwright install --with-deps chromium`, `npx playwright test --project=api --project=ui`; uploads `playwright-report/` and `test-results/` as artifacts even when tests fail | `npx playwright test` |
 | `audit` | `npm audit --audit-level=high`; findings show up as a warning annotation and in the job summary, but don't fail the build | `npm audit --audit-level=high` |
+| `agent-tests` | `npm run test:agent`: only human-approved agent-generated tests in `tests/agent/` (the agents themselves never run in CI) | `npm run test:agent` |
 | `perf-smoke` | starts the app (rate limit raised), runs `k6 run perf/smoke.js`; thresholds fail the job; uploads the k6 summary JSON | `RATE_LIMIT_MAX=1000000 npm start` then `k6 run perf/smoke.js` |
 | `deploy-report` | On `main` only: publishes the Playwright HTML report to GitHub Pages, including failing runs | n/a |
 

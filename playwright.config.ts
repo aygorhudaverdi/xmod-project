@@ -24,7 +24,23 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   projects: [
-    { name: "api", testMatch: "api/**/*.spec.ts" },
-    { name: "ui", testMatch: "ui/**/*.spec.ts", use: { ...devices["Desktop Chrome"], launchOptions: { executablePath: process.env.CHROMIUM_PATH } } },
+    // testIgnore: these globs would otherwise also match tests/agent/api and tests/agent/ui.
+    { name: "api", testMatch: "api/**/*.spec.ts", testIgnore: "agent/**" },
+    { name: "ui", testMatch: "ui/**/*.spec.ts", testIgnore: "agent/**", use: { ...devices["Desktop Chrome"], launchOptions: { executablePath: process.env.CHROMIUM_PATH } } },
+    // Agent-generated, human-approved tests (docs/AGENT_TESTING.md). No retries: a flaky agent test must surface.
+    {
+      name: "agent",
+      testDir: "./tests/agent",
+      testMatch: "**/*.spec.ts",
+      retries: 0,
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: { executablePath: process.env.CHROMIUM_PATH },
+        trace: "retain-on-failure",
+        screenshot: "only-on-failure",
+      },
+    },
+    // Starting browser state for the Playwright MCP agents (tests/seed.spec.ts); not part of any CI job.
+    { name: "seed", testMatch: "seed.spec.ts", use: { ...devices["Desktop Chrome"], launchOptions: { executablePath: process.env.CHROMIUM_PATH } } },
   ],
 });
