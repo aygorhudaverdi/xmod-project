@@ -102,3 +102,8 @@ tr[aria-current="true"] th:first-child { box-shadow:inset 4px 0 0 var(--acc); }
 a.pt-link { color:inherit; text-decoration:underline; text-decoration-color:var(--acc); text-underline-offset:3px; }
 .table2-wrap table { border-collapse:separate; border-spacing:0; }
 .table2-wrap thead th { z-index:1; box-shadow:0 1px 0 var(--line); }
+.grafana-hosted { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+.grafana-url { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; }
+.grafana-url label { margin:0; font-size:13px; color:var(--ink); }
+.grafana-url input { width:22em; max-width:100%; }
+.grafana-url .lookup-message { flex-basis:100%; }

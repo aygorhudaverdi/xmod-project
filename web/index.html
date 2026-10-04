@@ -85,7 +85,7 @@
       <span class="note">Last updated: <time id="dash-updated" data-testid="dash-updated">never</time></span>
       <span class="dash-status" id="dash-status" data-testid="dash-status" role="status"></span>
       <button class="btn" id="dash-pause" data-testid="dash-pause" type="button" aria-pressed="false">Pause auto-refresh</button>
-      <a id="grafana-link" data-testid="grafana-link" href="http://localhost:3001" target="_blank" rel="noopener noreferrer">Open Grafana ↗</a>
+      <a id="grafana-link" data-testid="grafana-link" href="http://localhost:3001" target="_blank" rel="noopener noreferrer" hidden>Open Grafana ↗</a>
     </div>
     <div class="kpis">
       <div class="kpi"><span class="kpi-label">Requests served</span><span class="kpi-value" id="dash-total-requests" data-testid="dash-total-requests">–</span></div>
@@ -97,6 +97,15 @@
     </div>
     <h3 class="sub">Calculated mods since start <span class="note" id="dash-mod-mean" data-testid="dash-mod-mean"></span></h3>
     <table data-testid="dash-mod-dist"><thead><tr><th scope="col">Mod range</th><th scope="col" class="n">Count</th><th scope="col">Share</th></tr></thead><tbody id="dash-mod-rows"></tbody></table>
+    <div class="grafana-hosted" id="grafana-hosted" hidden>
+      <p class="note" data-testid="grafana-note">Grafana runs locally with docker compose (see README). The panels above are live from this deployment.</p>
+      <div class="grafana-url">
+        <label for="grafana-url-input">Grafana URL</label>
+        <input id="grafana-url-input" data-testid="grafana-url-input" type="url" inputmode="url" autocomplete="url" placeholder="https://your-grafana.example" aria-describedby="grafana-url-help grafana-url-message">
+        <span class="note" id="grafana-url-help">Paste your own Grafana address to get an "Open Grafana" link here. It is saved in this browser only.</span>
+        <p class="lookup-message" id="grafana-url-message" data-testid="grafana-url-message" aria-live="polite"></p>
+      </div>
+    </div>
     <p class="note">Numbers come from the app's own Prometheus metrics (<code>GET /api/stats</code>, built from <code>/metrics</code>) and cover the life of this server process. Dashboard polling is excluded from the counts. Percentiles are interpolated from histogram buckets, so they are estimates. For history and alerting, use Grafana (<code>docker compose up</code>).</p>
   </div>
   <div class="card card-gap" data-testid="test-results">

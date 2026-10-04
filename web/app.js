@@ -1,4 +1,5 @@
 import { STORIES } from "./stories.js";
+import { parseGrafanaUrl, resolveGrafana, STORAGE_KEY as GRAFANA_KEY } from "./grafana.js";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const money = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -408,20 +409,42 @@ const fmtUptime = (s) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   return `${h ? `${h}h ` : ""}${String(m).padStart(h ? 2 : 1, "0")}m ${String(sec).padStart(2, "0")}s`;
 };
-const GRAFANA_DEFAULT = "http://localhost:3001";
 
 function createDashboard() {
   const REFRESH_MS = 5000;
   let active = false, paused = false, timer = null;
 
-  // Grafana link: ?grafana=<url> overrides and is remembered; otherwise the server's GRAFANA_URL, else the default.
+  // Grafana link (rules in grafana.js): local pages link to localhost:3001; hosted pages show no dead link, only a note
+  // and an input where a visitor can paste their own Grafana URL. ?grafana=<url> still overrides and is remembered.
   let grafanaOverride = null;
-  try {
-    const q = new URLSearchParams(location.search).get("grafana");
-    if (q && /^https?:\/\//.test(q)) localStorage.setItem("xmod.grafanaUrl", q);
-    grafanaOverride = localStorage.getItem("xmod.grafanaUrl");
-  } catch { /* storage unavailable: fall back to server/default */ }
-  const setGrafana = (url) => { $("#grafana-link").href = grafanaOverride || url || GRAFANA_DEFAULT; };
+  let grafanaServerUrl = null;
+  const storage = {
+    get() { try { return localStorage.getItem(GRAFANA_KEY); } catch { return null; } },
+    set(v) { try { v ? localStorage.setItem(GRAFANA_KEY, v) : localStorage.removeItem(GRAFANA_KEY); } catch { /* not persisted */ } },
+  };
+  const fromQuery = parseGrafanaUrl(new URLSearchParams(location.search).get("grafana"));
+  if (fromQuery) storage.set(fromQuery);
+  grafanaOverride = fromQuery ?? parseGrafanaUrl(storage.get());
+  function setGrafana(serverUrl = grafanaServerUrl) {
+    grafanaServerUrl = serverUrl;
+    const { url, hosted } = resolveGrafana({ hostname: location.hostname, override: grafanaOverride, serverUrl });
+    const link = $("#grafana-link");
+    link.hidden = !url;
+    if (url) link.href = url;
+    $("#grafana-hosted").hidden = !hosted;
+  }
+  $("#grafana-url-input").value = grafanaOverride ?? "";
+  $("#grafana-url-input").addEventListener("change", (e) => {
+    const raw = e.target.value.trim();
+    const msg = $("#grafana-url-message");
+    if (!raw) { grafanaOverride = null; storage.set(null); msg.textContent = ""; return setGrafana(); }
+    const url = parseGrafanaUrl(raw);
+    if (!url) { msg.textContent = "Enter a full http:// or https:// address, for example https://grafana.example.com."; return; }
+    msg.textContent = "";
+    grafanaOverride = url;
+    storage.set(url);
+    setGrafana();
+  });
   setGrafana(null);
 
   async function refreshStats() {

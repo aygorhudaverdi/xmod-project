@@ -1,0 +1,41 @@
+# Remote mode: watch the hosted app (https://xmod-lab.onrender.com) from a local Prometheus + Grafana.
+#   docker compose -f docker-compose.remote.yml up -d     Grafana http://localhost:3001, Prometheus http://localhost:9090
+#   docker compose -f docker-compose.remote.yml down -v
+# No app container: Prometheus scrapes the Render deployment over HTTPS every 30 s, which keeps the free instance
+# awake and uses its monthly hours. Stop the stack when you are done.
+# Own project name, so it never replaces or removes the local stack's containers (docker-compose.yml, project "xmod").
+name: xmod-remote
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+    volumes:
+      - ./observability/prometheus.remote.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-remote-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/xmod.json
+      # Local-only stack. Set GRAFANA_ADMIN_PASSWORD in your shell to override Grafana's default.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-remote-data:

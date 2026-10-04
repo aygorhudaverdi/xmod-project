@@ -17,7 +17,7 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | US-05 | Eligibility | 2 | 2 | 1 | 5 |
 | US-06 | Input validation and clear errors | 10 | 13 | 4 | 27 |
 | US-07 | Result laid out like the experience rating worksheet | 4 | 3 | 13 | 20 |
-| US-08 | Quality dashboard | 14 | 3 | 10 | 27 |
+| US-08 | Quality dashboard | 20 | 3 | 17 | 40 |
 | US-09 | Experience period and rating effective date | 24 | 8 | 0 | 32 |
 | US-10 | Reference tables: Table II primary thresholds | 2 | 7 | 7 | 16 |
 
@@ -266,6 +266,12 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 
 | Level | File | Test |
 |---|---|---|
+| unit | `tests/unit/grafana.test.ts` | US-08 %s is a local host |
+| unit | `tests/unit/grafana.test.ts` | US-08 %j is not local |
+| unit | `tests/unit/grafana.test.ts` | US-08 accepts http/https URL %j |
+| unit | `tests/unit/grafana.test.ts` | US-08 rejects %j |
+| unit | `tests/unit/grafana.test.ts` | US-08 local page: default localhost:3001; server GRAFANA_URL beats it; a visitor override beats both |
+| unit | `tests/unit/grafana.test.ts` | US-08 hosted page: no dead localhost link; only a visitor URL or a real server-configured URL is shown |
 | unit | `tests/unit/stats.test.ts` | returns null with no observations |
 | unit | `tests/unit/stats.test.ts` | interpolates linearly inside the bucket that holds the rank |
 | unit | `tests/unit/stats.test.ts` | the first bucket interpolates from zero |
@@ -293,6 +299,13 @@ their `${...}` placeholders, and each one expands to several test cases at run t
 | ui | `tests/ui/dashboard.spec.ts` | US-08 shows an empty state when no Playwright results file exists |
 | ui | `tests/ui/dashboard.spec.ts` | US-08 renders pass/fail per project and the failed-test list |
 | ui | `tests/ui/dashboard.spec.ts` | US-08 a run with no failures says so |
+| ui | `tests/ui/grafana.spec.ts` | US-08 the link is visible and points to localhost:3001; no hosted note |
+| ui | `tests/ui/grafana.spec.ts` | US-08 ?grafana=https://example.com overrides the link |
+| ui | `tests/ui/grafana.spec.ts` | US-08 no dead localhost link: the note and the URL input are shown instead |
+| ui | `tests/ui/grafana.spec.ts` | US-08 entering a Grafana URL shows the link, and it is remembered after a reload |
+| ui | `tests/ui/grafana.spec.ts` | US-08 a non-http(s) URL is rejected inline: ${bad} |
+| ui | `tests/ui/grafana.spec.ts` | US-08 ?grafana= override also works on a hosted page |
+| ui | `tests/ui/grafana.spec.ts` | US-08 axe: no violations on the hosted dashboard tab with the note and an error (${scheme}) |
 
 ## US-09: Experience period and rating effective date
 

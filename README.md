@@ -77,7 +77,7 @@ The **Quality dashboard** tab shows two panels:
   reporter: pass/fail/flaky/skipped per project and the failed tests with their first error line. Run
   `npx playwright test`, then `npm start`, to see it. Without a results file the panel shows an empty state.
 
-The Grafana link defaults to `http://localhost:3001`. Override it on the server with `GRAFANA_URL`, or per browser
+On a local page the Grafana link defaults to `http://localhost:3001`; on a hosted page it's hidden unless a Grafana URL is set (see *Observability*). Override it on the server with `GRAFANA_URL`, or per browser
 with `?grafana=https://your-grafana`, which is remembered.
 
 ## Continuous integration
@@ -113,6 +113,10 @@ results, and the last local run, and [perf/PERFORMANCE_REQUIREMENTS.md](perf/PER
 
 ## Observability (Prometheus + Grafana)
 
+There are two modes. Both use the same Grafana dashboard and alert rules.
+
+**Local mode:** the app, Prometheus and Grafana all run in Docker on your machine.
+
 ```
 docker compose up -d --build                         # app :3000, Prometheus :9090, Grafana :3001
 docker compose --profile perf run --rm k6            # optional: run perf/load.js against the stack
@@ -132,6 +136,25 @@ What to look at:
   and target down. The thresholds match the k6 NFRs, so what's tested before release is what's watched after.
 - Grafana's admin password defaults to Grafana's own `admin` for this local-only stack. Set `GRAFANA_ADMIN_PASSWORD`
   in your shell to override it. No credentials are stored in the repo.
+
+**Remote mode:** a local Prometheus and Grafana watch the hosted app on Render. No app container runs.
+
+```
+docker compose -f docker-compose.remote.yml up -d     # Grafana http://localhost:3001, Prometheus http://localhost:9090
+docker compose -f docker-compose.remote.yml down -v
+```
+
+Prometheus uses [`observability/prometheus.remote.yml`](observability/prometheus.remote.yml) to scrape
+`https://xmod-lab.onrender.com/metrics` every 30 s, with a 20 s timeout because a free instance can be slow to wake.
+**Each scrape keeps the free Render service awake and uses its monthly instance hours**, so stop the stack when
+you're done. If your Render service has a different name, change the target in that file.
+
+**Why the hosted app shows no "Open Grafana" link:** Grafana only runs on your machine, so on the hosted app a
+`localhost:3001` link would be a dead link for every visitor (DEF-011). On a hosted page the Quality dashboard shows
+a note instead ("Grafana runs locally with docker compose…"), plus a *Grafana URL* box where a visitor can paste
+their own Grafana address. It's saved in that browser only, and only http/https addresses are accepted. On
+`localhost` the link points to `http://localhost:3001` as before. `?grafana=<url>` still overrides it in both
+modes, and a server-side `GRAFANA_URL` that isn't a localhost address is shown on hosted pages too.
 
 The app's metrics come from [`src/server/app.ts`](src/server/app.ts): `xmod_http_request_duration_seconds{method,route,status}`
 (the `route` label is the matched route pattern, `unmatched` or `static`, so cardinality stays bounded),

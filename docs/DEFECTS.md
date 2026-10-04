@@ -233,6 +233,33 @@ instead of the exit code or the reporter's statistics.
 caught the failure.
 **Regression test:** the corrected test itself. The process change is recorded in TEST_PROCESS_IMPROVEMENTS.md (#9).
 
+### DEF-011: Dashboard link pointed at localhost:3001 on the hosted app (dead link)
+| Field | Value |
+|---|---|
+| Severity | Minor (low): a dead link for every visitor of the hosted app; no wrong data, and the live panels worked |
+| Found by | Project owner, using the deployed app on Render |
+| Component | UI (Quality dashboard) |
+| Status | Fixed (this commit) |
+
+**Steps to reproduce:**
+1. Open the hosted app (`https://xmod-lab.onrender.com`) and go to the *Quality dashboard* tab.
+2. Click *Open Grafana ↗*.
+
+**Expected:** no link to a service the visitor can't reach. If Grafana isn't available for this deployment, say so.
+**Actual:** the link went to `http://localhost:3001`, which is the visitor's own machine, so it fails for everyone.
+**Root cause:** an environment-specific URL. The default `http://localhost:3001` (and the server's `GRAFANA_URL`
+fallback, which reports the same default when unset) is only right where Grafana runs locally under docker compose.
+The UI applied it on every host.
+**Fix:** `web/grafana.js` decides the link by where the page is served. On `localhost`/`127.0.0.1` the link stays
+`http://localhost:3001`. On any other host, localhost URLs are never shown: the dashboard shows a note ("Grafana runs
+locally with docker compose…") and a *Grafana URL* input (http/https only, stored in `localStorage`). The link
+appears once a URL is set, either from the input, from `?grafana=`, or from a non-localhost server `GRAFANA_URL`.
+Separately, `docker-compose.remote.yml` lets a local Grafana watch the hosted app.
+**Regression tests:** `tests/unit/grafana.test.ts` (host detection, URL validation, link decision for local and
+hosted pages) and `tests/ui/grafana.spec.ts`. The hosted UI tests load the real app under a non-local hostname
+(`hosted.xmod.test`, which Chromium maps to the test server with `--host-resolver-rules`; nothing is mocked) and
+check: no link, the note shown, URL entry, rejection of non-http(s) URLs, the `?grafana=` override, and axe.
+
 ## Defect trend
 
 | Found during | Defects | By severity | How found |
@@ -244,7 +271,8 @@ caught the failure.
 | Test documentation (Task 7) | 1 | Minor 1 | Review of generated report |
 | Worksheet redesign | 1 (open) | Major 1, if confirmed | Deriving expected values from the Plan text before writing tests |
 | Worksheet redesign (process) | 1 | Major 1 | CI caught a failure that local verification had masked |
-| **Total** | **10** | **Critical 0, Major 8, Minor 2** | 9 closed, each with a regression test; 1 open pending a rules decision |
+| Hosted deployment | 1 | Minor 1 | Project owner using the deployed app |
+| **Total** | **11** | **Critical 0, Major 8, Minor 3** | 10 closed, each with a regression test; 1 open pending a rules decision |
 
 Most defects sat on **contract edges and error paths** (DEF-001, 004, 005, 006) or in **non-functional and
 tooling layers** (002, 003, 007, 008). None came from the rating math, which example and property tests had already
