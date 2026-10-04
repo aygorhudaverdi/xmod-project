@@ -32,7 +32,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (400 MALFORMED_JSON for unparsable body, docs/SECURITY_AND_A11Y.md section 1); the strict body parser rejects non-object roots. ASSUMPTION that MALFORMED_JSON (not MALFORMED_REQUEST) is the wanted code for valid-JSON-but-not-an-object, see Open question Q1.
 - Existing coverage: API-X `malformed JSON -> 400 MALFORMED_JSON` covers only `{not json`.
 - Status: PROPOSED (observed matches)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-2: Empty, array and empty-object bodies with a JSON content type
 - Layer: API
@@ -47,7 +47,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06; `NO_PAYROLL` is the documented code for no payroll lines, API-X case "no payroll").
 - Existing coverage: API-X `US-06 no payroll -> 422 NO_PAYROLL` covers `{payroll:[],claims:[]}` only.
 - Status: PROPOSED (observed matches)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-3: Missing or wrong content type
 - Layer: API
@@ -63,7 +63,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (error shape on every failure; existing test already pins "4xx, not 500"). The exact status/code is OPEN-QUESTION Q2.
 - Existing coverage: API-S `non-JSON content type is not parsed and is rejected without a 500` covers step 1 only.
 - Status: OPEN-QUESTION (observed: steps 1-3 are 400 MALFORMED_REQUEST "not a valid rating input", step 4 is 400 MALFORMED_JSON)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-4: payroll container has the wrong type
 - Layer: API
@@ -79,7 +79,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (error shape, specific message, US-06 "invalid input rejected with a specific message"). Exact code for step 1 is OPEN-QUESTION Q3.
 - Existing coverage: none.
 - Status: OPEN-QUESTION (observed: step 1 gives 422 UNKNOWN_CLASS "Unknown class code undefined" because the string is iterated character by character; see CD-5)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-5: Array entries that are not objects
 - Layer: API
@@ -96,7 +96,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (400 MALFORMED_REQUEST for a body that is not a valid rating input; 422 BAD_CLAIM_ID for a claim without text id, US-06 AC "Claim ids must be non-empty text"). The 400-versus-422 split is ASSUMPTION (follows the app's TypeError mapping); see Q3.
 - Existing coverage: U-X `rejects claim id %j (DEF-006)` covers id types, not non-object claim entries; API-X `payroll as a string does not 500` is the only shape test.
 - Status: PROPOSED (observed matches)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-6: Wrong HTTP methods and path variants on the calculate route
 - Layer: API
@@ -111,7 +111,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (wrong method on a real route is JSON 404 NOT_FOUND, API-S). Step 3 is OPEN-QUESTION Q4.
 - Existing coverage: API-S `wrong method on a real route -> JSON 404 NOT_FOUND` covers GET only.
 - Status: OPEN-QUESTION (observed: step 1-2 404 JSON; step 3 all three return 200)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
@@ -136,7 +136,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06 "Negative payroll or loss -> rejected"; code BAD_PAYROLL; only finite non-negative JSON numbers are payroll). Strings with separators/symbols are rejected because the API takes JSON numbers, not formatted text (ASSUMPTION, matches the UI which strips separators client-side, see Q5).
 - Existing coverage: API-X `negative payroll`, `payroll as a string does not 500` (asserts only < 500). Steps 2-9 none.
 - Status: PROPOSED (observed: 1, 6 (null), 7 match; others not yet observed except 8)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-8: Payroll that sums to zero, including negative zero
 - Layer: API
@@ -150,7 +150,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (ZERO_EXPECTED documented in API-X; E = 0 x ELR / 100 = 0 by HAND-CALC).
 - Existing coverage: API-X `zero expected` covers a single line of 0.
 - Status: PROPOSED (step 1 observed 422 ZERO_EXPECTED)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-9: Loss amounts of the wrong type or missing
 - Layer: API
@@ -162,7 +162,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06 "Negative payroll or loss -> rejected", code BAD_LOSS in API-X).
 - Existing coverage: API-X `negative loss` (indemnity -1 only); U-X `rejects negative losses`.
 - Status: PROPOSED (observed matches for string, absent, null, true, array)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-10: Class code variants (leading zeros, length, type, whitespace)
 - Layer: API
@@ -174,7 +174,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06 "Unknown class code -> 422 UNKNOWN_CLASS"; data/table1_elr_dratios.json keys are 4-character strings, so only exact keys are known). Whether `" 0005"` should be trimmed is Q6.
 - Existing coverage: API-X `unknown class` (9999 only); API-X GET `/api/classes/9999`.
 - Status: PROPOSED (observed: 005, " 0005", number 5, absent give 422 UNKNOWN_CLASS)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-11: Class codes that are Object.prototype property names
 - Layer: API
@@ -189,7 +189,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06 "Unknown class code -> 422 UNKNOWN_CLASS"; error contract says 500 INTERNAL is only for unexpected server faults, and user input must not cause one).
 - Existing coverage: none.
 - Status: PROPOSED - CANDIDATE DEFECT CD-1 (observed 500 INTERNAL for step 1, 400 MALFORMED_REQUEST for step 2, 200 for `/api/classes/constructor`)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-12: Claim id variants through the API
 - Layer: API
@@ -201,7 +201,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06 AC "Claim ids must be non-empty text of at most 100 characters"; DEF-006).
 - Existing coverage: U-X `rejects claim id %j (DEF-006)` (6 cases at unit level); API-S `a non-string claim id is rejected` (object only). API gap is small.
 - Status: PROPOSED (observed matches for "", "   ", 101 chars, absent)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-13: Unknown treatment value
 - Layer: API
@@ -217,7 +217,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06 invalid input is rejected with a specific message; `Treatment` is the closed union "none|subrogation|fraud|compromise|joint" in src/engine/xmod.ts). New error code name is Q7.
 - Existing coverage: none.
 - Status: PROPOSED - CANDIDATE DEFECT CD-4 (observed: step 1 gives 422 BAD_NET, a misleading code; step 2 gives 200 with AP 750 as if treatment were none, so the net is silently ignored)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-14: netIncurred on a claim whose treatment is none or absent
 - Layer: API
@@ -232,7 +232,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC for option (b) (AL 100 <= 250 so AP 0); the choice between (a) and (b) is OPEN-QUESTION Q8.
 - Existing coverage: none.
 - Status: OPEN-QUESTION (observed: 200, net ignored, AP 0, for steps 1 and 2)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-15: Boolean flags sent as strings or numbers
 - Layer: API
@@ -250,7 +250,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC for the base case (above) and CONTRACT (US-06: invalid input rejected, no silent wrong result). The code name is Q7.
 - Existing coverage: none.
 - Status: PROPOSED - CANDIDATE DEFECT CD-2 (observed: `nonCompensable:"false"` excludes the claim, AP 0, mod 0.77; `death:"false"` is valued as a death, AL 175,000)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-16: contractMedical shapes
 - Layer: API
@@ -262,7 +262,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (US-06; BAD_LOSS and UNKNOWN_CLASS are the existing validation codes, src/engine/xmod.ts `validate`). The container-type code is Q3.
 - Existing coverage: none at API level; U-X has no contract-medical validation case.
 - Status: PROPOSED (observed: -1 -> BAD_LOSS, 9999 -> UNKNOWN_CLASS, "abc" -> UNKNOWN_CLASS, null -> 200)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-NEG-17: multiPerson and accidentId combinations
 - Layer: API
@@ -278,7 +278,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT for steps 1-2 (BAD_ACCIDENT in src/engine/xmod.ts); ASSUMPTION extending DEF-006 for step 3 (ids that are echoed must be bounded text); HAND-CALC for step 4 (20,000 > PT 8,500, AP = 8,500 - 250 = 8,250).
 - Existing coverage: none for BAD_ACCIDENT; US-03 multi-person tests only cover valid groups (API-X `multi-person accident is one capped line`).
 - Status: PROPOSED (observed: 1 -> BAD_ACCIDENT, 4 -> ordinary; step 3 numeric id was accepted and echoed as `accident:7 (a)`, see CD-6)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
@@ -296,7 +296,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC. 358,836 x 2.02 = 717,672 + 7,176.72 = 724,848.72; / 100 = 7,248.4872, displays 7,248.49, rounds half-up to 7,248, band 0-7,248 -> 4,500. 358,837 x 2.02 = 724,850.74; / 100 = 7,248.5074, displays 7,248.51, rounds to 7,249 -> 5,000. Rounding rule: ASSUMPTION RatingPolicy #2 (E to whole dollars before lookup); band edges from catalog E-05.
 - Existing coverage: catalog E-05 covers integers 7248/7249 through the lookup endpoint and the unit test; API-X has no calculate-level fractional case. E-09 covers 47,636.59 via lookup only.
 - Status: PROPOSED (observed step 2: PT 5000)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-2: Table II edge 27,391 / 27,392 through calculate with fractional E
 - Layer: API
@@ -308,7 +308,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC. 1,356,014 x 2.02 = 2,712,028 + 27,120.28 = 2,739,148.28; / 100 = 27,391.4828, rounds to 27,391 -> 9,500. 1,356,015 x 2.02 = 2,739,150.30; / 100 = 27,391.503, rounds to 27,392 -> 10,000. ASSUMPTION RatingPolicy #2; edge from catalog E-07.
 - Existing coverage: catalog E-07 (integers via lookup); calculate-level none.
 - Status: PROPOSED (not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-3: $250 floor at 0, 249, 250, 250.005, 251
 - Layer: API
@@ -320,7 +320,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2 ordinary claim, floor: AP = AL - 250, never below 0. HAND-CALC: 250.005 - 250 = 0.005, which rounds half-up to 0.01 at two decimals (ASSUMPTION: line amounts are rounded half-up to cents, src/engine/xmod.ts `out()`; it is not in RatingPolicy, see Q9).
 - Existing coverage: API-X `US-02 $250 floor` covers 250 and 251; U-X `claims of $250 or less count as zero-primary`. Values 0, 249 and 250.005 are gaps.
 - Status: PROPOSED (observed 0 and 249: AP 0)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-4: Maximum loss value 174,999 / 175,000 / 175,001, also split across indemnity and medical
 - Layer: API
@@ -332,7 +332,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2, Actual Losses limited to the Maximum Loss Value 175,000 (data/plan_constants.json). HAND-CALC for AP as above.
 - Existing coverage: API-X `US-02 ... MLV cap` uses 250,000; U-X `caps Actual Losses at the Maximum Loss Value`, `sums indemnity and medical before capping`. The exact +-1 values at API level are a gap.
 - Status: PROPOSED (observed matches for the first three)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-5: AL around the primary threshold (PT-1, PT, PT+1)
 - Layer: API
@@ -344,7 +344,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2 ordinary claim: AP = min(AL, PT) - 250. HAND-CALC: 8,499-250 = 8,249; 8,500-250 = 8,250; min(8,501, 8,500) - 250 = 8,250.
 - Existing coverage: U-X property `every claim's Ap is within [0, PT-250]`; the three exact values at API level none.
 - Status: PROPOSED (not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-6: COVID window dates (inclusive 2019-12-01 to 2024-08-31)
 - Layer: API
@@ -356,7 +356,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2(j) as stated in web/stories.js US-03 ("COVID Cat.12 (12/1/2019-8/31/2024) claims are excluded"), both ends inclusive; HAND-CALC for AP and mod values above.
 - Existing coverage: API-X `US-03 COVID Cat.12 claim is excluded` (mid-window date only); U-X `COVID exclusion needs Catastrophe No. 12`. Edge dates none.
 - Status: PROPOSED (observed matches for the four ISO dates tested)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-7: netIncurred bounds on a subrogation claim
 - Layer: API
@@ -368,7 +368,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2(d): AP = max(0, min(gross, PT) x ratio - 250), ratio = net/gross. HAND-CALC: net 0: ratio 0, 0 - 250 -> floored 0; net = gross: ratio 1, min(10,000, 8,500) - 250 = 8,250. CONTRACT for BAD_NET (US-06 "Net incurred must not exceed gross incurred").
 - Existing coverage: API-X `net exceeds gross` (200 vs 100) and `subrogation without net`; U-X `subrogation/joint results floor at zero`. Exact +-0.01 bounds and zero gross are gaps.
 - Status: PROPOSED (observed matches for 0, =gross, zero gross)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-8: Multi-person accident Actual Primary cap edge (16,500 vs 16,501)
 - Layer: API
@@ -382,7 +382,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2(a): multi-person AP limited to 2 x PT - 500 (US-03 AC "2xPT - $500"). HAND-CALC: 8,250 + 8,250 + 1 = 16,501 > 16,500. Cap: raw mod (16,500 + 15,634.80)/20,200 = 1.5909 > 1.024 -> 1.02. The "grouped group counts once for the 25-point cap" behaviour is the documented fixed assumption in src/engine/xmod.ts RatingPolicy comment.
 - Existing coverage: U-X `multi-person accident: Ap capped at 2*PT - 500`; API-X `multi-person accident is one capped line` (three 20,000 claims). The exact equals/exceeds-by-one edge is a gap.
 - Status: PROPOSED (observed matches)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-BND-9: Request body size limit 262,144 vs 262,145 bytes
 - Layer: API
@@ -394,7 +394,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (body limit "256kb", 413 PAYLOAD_TOO_LARGE, docs/SECURITY_AND_A11Y.md). ASSUMPTION that "256kb" means 256 x 1024 bytes and that a body equal to the limit is accepted (body-parser compares length > limit).
 - Existing coverage: API-X and API-S `oversized body` (300,000 bytes only, far above the edge).
 - Status: PROPOSED (not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
@@ -410,7 +410,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC: 100.1 + 200.2 = 300.3 in decimal arithmetic; AP = 300.3 - 250 = 50.3 (ordinary, within PT 8,500). Engine comment: "floats never touch a dollar amount". Mod check: (50.3 + 15,634.80)/20,200 = 15,685.10/20,200 = 0.77654 -> 0.78 (ASSUMPTION RatingPolicy #1, 2-decimal half-up).
 - Existing coverage: none.
 - Status: PROPOSED (observed matches: AL 300.3, AP 50.3, mod 0.78)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-2: Sub-cent loss amounts
 - Layer: API
@@ -422,7 +422,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: ASSUMPTION (line amounts rounded half-up to 2 decimals, src/engine/xmod.ts `out()`; not one of the four RatingPolicy items); HAND-CALC: 250.004 - 250 = 0.004 -> 0.00.
 - Existing coverage: none.
 - Status: OPEN-QUESTION Q9 (observed 200 with the values above)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-3: Extreme magnitudes
 - Layer: API
@@ -438,7 +438,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC (MLV cap, band table "and over"); CONTRACT (no 5xx). Whether a ceiling exists is OPEN-QUESTION Q10.
 - Existing coverage: none.
 - Status: OPEN-QUESTION (observed: steps 1-3 return 200: step 1 PT 75,000 mod 0.19, step 2 PT 4,500, step 3 AL 175,000; step 4 not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-4: Unit confusion, dollars entered for a per-capita class
 - Layer: UI+API
@@ -453,7 +453,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC. 7707 ELR 126.50 per person, not divided by 100: 100 x 126.50 = 12,650; 1,000,000 x 126.50 = 126,500,000 >= 3,293,540 -> top band 75,000. Catalog E-02 and E-08.
 - Existing coverage: E-02 (correct unit only); no wrong-unit scenario.
 - Status: OPEN-QUESTION (API behaviour observed matches the arithmetic; the warning is a product question)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-5: Unit confusion, a head count entered for a dollar class, and fractional heads
 - Layer: API
@@ -467,7 +467,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC: 100 x 2.02 / 100 = 2.02 (first band, PT 4,500); 100.5 x 126.50 = 12,713.25. US-05 AC (eligible only when E >= 10,800). Fractional heads: Q11.
 - Existing coverage: U-X `per-capita classes are not divided by 100` (integer heads only).
 - Status: PROPOSED for step 1; OPEN-QUESTION for step 2 (observed 200 for both)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-6: Duplicate payroll class lines are added, not rejected
 - Layer: API
@@ -479,7 +479,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC: 2 x (500,000 x 2.02 / 100) = 2 x 10,100 = 20,200; catalog E-03 (several classes add up). Whether repeated class codes should instead be rejected is Q12.
 - Existing coverage: U-X `sums multiple classes` (different classes only).
 - Status: PROPOSED (observed 200, E 20,200)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-7: Claim ids differing only by case or trailing space
 - Layer: API
@@ -491,7 +491,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: OPEN-QUESTION Q13 (US-06 says "Duplicate claim ids rejected" without defining equality).
 - Existing coverage: API-X `duplicate claim ids` (exact match only).
 - Status: OPEN-QUESTION (observed: both accepted, 2 lines)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-8: Non-compensable combined with a treatment
 - Layer: API
@@ -506,7 +506,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2(c) for step 3 (non-compensable contributes nothing; HAND-CALC mod = loss-free 0.77). Steps 1-2 are OPEN-QUESTION Q14.
 - Existing coverage: U-X `non-compensable claims contribute nothing`; no combination case.
 - Status: OPEN-QUESTION for steps 1-2 (observed: 422 BAD_NET); PROPOSED for step 3 (not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-9: Rule precedence when death, EL+WC, treatment and joint overlap
 - Layer: API
@@ -521,7 +521,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC for step 3 (ratio 0). Steps 1-2: OPEN-QUESTION Q14 (Plan precedence not in repo).
 - Existing coverage: U-X has each rule alone (`EL + WC claim`, `death with compromise`).
 - Status: OPEN-QUESTION
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-10: multiPerson group of one, and COVID fields without their pair
 - Layer: API
@@ -537,7 +537,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: PLAN Sec VI R2(j) (exclusion requires Catastrophe No. 12 AND an accident date in the window) for steps 2-3; HAND-CALC for AP. Step 4: ASSUMPTION (type strictness) Q7.
 - Existing coverage: U-X `COVID exclusion needs Catastrophe No. 12`.
 - Status: PROPOSED for steps 1-3 (observed matches); OPEN-QUESTION for step 4 (observed: included, AP 8,250)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-EDGE-11: accidentDate is not validated as a date
 - Layer: API
@@ -549,7 +549,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (src/engine/xmod.ts documents `accidentDate?: string // ISO yyyy-mm-dd`; US-06 invalid input rejected); PLAN window end 2024-08-31 inclusive (web/stories.js US-03). HAND-CALC for outcomes above.
 - Existing coverage: none (docs/ENGINE_PERIOD_RULES.md validates dates only on the experience-period endpoint).
 - Status: PROPOSED - CANDIDATE DEFECT CD-3 (observed: `2024-08-31T12:00:00Z` is NOT excluded, AP 8,250; `2020-02-30` (impossible date) IS excluded; `zzzz` and the number are silently ignored)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
@@ -570,7 +570,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC (REF values; AL 1 <= 250 gives AP 0; 20,000 > 8,500 gives AP 8,250). CONTRACT (extra unknown fields are ignored).
 - Existing coverage: none.
 - Status: PROPOSED (observed matches for steps 1-3; step 4 not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-SEC-2: Markup, RTL, emoji and null bytes in text fields round-trip as inert data
 - Layer: API
@@ -586,7 +586,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (API-S "injection-style strings are returned as data"; US-06 AC length 100). Code-unit counting is ASSUMPTION Q15.
 - Existing coverage: API-S `injection-style strings are returned as data, never interpreted`; ui `tests/ui/security.spec.ts` XSS (four payloads in claim ids). NUL, RTL, emoji, accidentId and length-by-code-unit are gaps.
 - Status: PROPOSED (observed step 1, 2, 4 return data unchanged)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-SEC-3: Error messages echo user input without a length bound
 - Layer: API
@@ -598,7 +598,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: ASSUMPTION (same rationale as DEF-006: values echoed back must be bounded text). Bound is Q16.
 - Existing coverage: none.
 - Status: PROPOSED - CANDIDATE DEFECT CD-6 (observed: response body 100,074 bytes, the full string is echoed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-SEC-4: Security headers and JSON content type on error responses
 - Layer: API
@@ -610,7 +610,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (helmet applied before every route, docs/SECURITY_AND_A11Y.md section 1).
 - Existing coverage: API-S header test covers `/` and `/api/health` only; error responses unchecked.
 - Status: PROPOSED (observed matches for the 200 response and the 404 markup path)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-SEC-5: No stack trace, file path or result fields on any failure
 - Layer: API
@@ -622,7 +622,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (docs/SECURITY_AND_A11Y.md: every error is `{error:{code,message}}`, no stack can reach a client; API-X "never return a result alongside an error").
 - Existing coverage: API-S `error contract never leaks internals` (5 cases); API-X validation table (8 cases). This scenario widens the net to every shape-error path.
 - Status: PROPOSED (observed: all responses probed had the correct shape, including the 500s)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-SEC-6: X-Forwarded-For cannot be used to evade the rate limit
 - Layer: API
@@ -634,7 +634,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (limit is per client IP; TRUST_PROXY only when behind a proxy, docs/SECURITY_AND_A11Y.md section 1).
 - Existing coverage: API-S rate limit test (single client, no header).
 - Status: PROPOSED (not run live by design)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
@@ -650,7 +650,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC (REF) and CONTRACT (xmod_calculations_total counts outcome ok per successful calculation, src/server/app.ts).
 - Existing coverage: API-X `US-08 /api/stats ... move after a calculation` (single request, `greaterThan`).
 - Status: PROPOSED (not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-FLOW-2: A failed request does not poison the next one
 - Layer: API
@@ -662,7 +662,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC (REF); CONTRACT (stateless endpoint).
 - Existing coverage: none.
 - Status: PROPOSED (not yet observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-FLOW-3: Outcome counters classify each failure
 - Layer: API
@@ -674,7 +674,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: ASSUMPTION (code in src/server/app.ts increments only inside the route handler; parse failures never reach it; DEF-004 requires them in the HTTP histogram). Whether parse failures should count in calculations is Q17.
 - Existing coverage: API-X `body-parser errors are labelled with their endpoint`; U `stats` tests.
 - Status: OPEN-QUESTION (Q17)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-FLOW-4: Parse failures do not consume rate-limit budget
 - Layer: API
@@ -686,7 +686,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: OPEN-QUESTION Q18 (docs say the limit covers "POST /api/xmod/calculate" without saying whether parse failures count). Observed live: the `RateLimit` headers are absent on 400 MALFORMED_JSON responses and the remaining counter did not move.
 - Existing coverage: API-S rate limit test (valid requests only).
 - Status: OPEN-QUESTION
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-FLOW-5: One shared rate-limit counter across three POST endpoints
 - Layer: API
@@ -698,7 +698,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: OPEN-QUESTION Q18 (docs/SECURITY_AND_A11Y.md says only calculate is limited; the code shares one counter).
 - Existing coverage: none.
 - Status: OPEN-QUESTION (derived from src/server/app.ts; not observed)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-FLOW-6: 429 contract on the isolated app, error shape and no result
 - Layer: API
@@ -710,7 +710,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: CONTRACT (429 RATE_LIMITED, docs/SECURITY_AND_A11Y.md). Message text copied from src/server/app.ts handler; the "invalid requests count" rule is ASSUMPTION (observed live: the remaining counter dropped on 400/422 responses that reach the route).
 - Existing coverage: API-S `calculate returns 429 RATE_LIMITED after the limit` (valid requests only, 429 body shape checked). Only the "failed requests count" part is new.
 - Status: PROPOSED (not run live by design)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
@@ -726,7 +726,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC (REF arithmetic at the top; Ep = 20,200 x D-ratio from Table I, value 4,565.20 pinned in API-X US-01, so not re-derived here); ASSUMPTION RatingPolicy #1/#2 for `policy`; CONTRACT for rate-limit headers.
 - Existing coverage: API-X `US-01 loss-free reference risk` checks 6 fields via toMatchObject; no key-set or type check.
 - Status: PROPOSED (observed 21 top-level keys)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ### AG-SMOKE-2: Optional collections omitted behave as empty
 - Layer: API
@@ -738,7 +738,7 @@ Status of every scenario: PROPOSED. Nothing here has been automated. No file out
 - Expected source: HAND-CALC (REF). `claims` omitted is accepted because the engine defaults it (`input.claims ?? []`); `claims:null` accepted-or-rejected is Q19.
 - Existing coverage: none.
 - Status: OPEN-QUESTION for null (observed: all three 200)
-- Human decision:
+- Human decision: APPROVE (approved in chat by the project owner, 2026-10-04; open questions Q1-Q20 still unanswered)
 
 ---
 
